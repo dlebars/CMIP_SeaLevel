@@ -1,0 +1,7 @@
+Center,Model,Ensemble,Grid,Version
+MIROC,MIROC6,r1i1p1f1,gn,v20181212
+IPSL,IPSL-CM6A-LR,r1i1p1f1,gn,v20180803
+CCCma,CanESM5,r1i1p1f1,gn,v20190429
+EC-Earth-Consortium,EC-Earth3-Veg,r1i1p1f1,gn,v20200225
+MRI,MRI-ESM2-0,r1i1p1f1,gr,v20191205
+CAMS,CAMS-CSM1-0,r1i1p1f1,gn,v20190708
