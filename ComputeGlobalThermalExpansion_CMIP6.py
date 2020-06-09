@@ -1,6 +1,5 @@
 ###############################################################################
 # ComputeGlobalMeanThermalExpansion_CMIP6.py: From CMIP6 data
-#   Python translation of PlotThermalExp.ncl
 ###############################################################################
 
 from pathlib import Path
@@ -10,6 +9,7 @@ import xarray as xr
 from scipy import signal
 import os
 from datetime import datetime
+import sys
 
 ### Functions definition ######################################################
 def remove_discontinuities(da, gap):
@@ -30,6 +30,7 @@ def remove_discontinuities(da, gap):
 
 VAR = 'zostoga'
 EXP = ['ssp585','piControl'] # 'ssp119', 'ssp126', 'ssp245', 'ssp370', 'ssp585'
+MIP = ['ScenarioMIP','CMIP'] # MIP to which the above runs are from
 
 ref_p_min = 1986
 ref_p_max = 2005
@@ -37,42 +38,40 @@ ref_p_max = 2005
 year_min = 1986  # Included
 year_max = 2100  # Excluded (2101)
 
-Freq     = 'mon'                         # Frequency of time output: mon or fx
 DataDir  = '/nobackup_1/users/bars/synda_cmip6/CMIP6/'
 Dir_SelectPath = './SelectPaths_CMIP6/'
 
 ModelList = pd.read_csv(Dir_SelectPath+'AvailableExperiments_'+str(VAR)+
                         '_historical_piControl_'+str(EXP[0])+'.csv')
 
-
-
-dimMod = len(ModelList.Models)
+dimMod = len(ModelList.Model)
 dimt = year_max-year_min
 print(dimt)
 time_all = np.arange(year_min, year_max)+0.5
 print(len(time_all))
 
 AVAR1  = np.zeros([2,dimMod,dimt])
-
+# Example of path:
+#/nobackup_1/users/bars/synda_cmip6/CMIP6/CMIP/NOAA-GFDL/GFDL-ESM4/historical/r1i1p1f1/Omon/zos/gr/v20190726
 for j in range(2):
     for i in range(dimMod):
-        p = Path(DataDir+ModelList.Centers[i]+'/'+ModelList.Models[i]+
-                     '/'+EXP[j]+'/'+Freq)
-        files1 = list(p.glob('*/*/*/*/'+VAR+'/*'+VAR+'*.nc'))
-        # Select the last version of data: 
-        vs = []
-        for k in range(len(files1)):
-            part = files1[k].parts
-            vs.append(part[len(part)-3])
-        vs.sort()
-        files1 = sorted(p.glob('*/*/*/'+vs[-1]+'/'+VAR+'/*'+VAR+'*.nc')) # Switched list to sorted
-        print('#### Using the following files: ####')
-        [print(str(x)) for x in  files1]
+        DataPath = (DataDir+MIP[j]+'/'+ModelList.Center[i]+'/'+ModelList.Model[i]+
+                    '/'+EXP[j]+'/'+ModelList.Ensemble[i]+'/Omon/'+VAR+'/'+
+                    ModelList.Grid[i]+'/'+ModelList[EXP[j]+'_Version'][i])
+        print('Looking for files there:')
+        print(DataPath)
+        p = Path(DataPath)
+        files1 = sorted(p.glob('*'+VAR+'*.nc'))
+        if len(files1) > 0:
+            print('#### Using the following files: ####')
+            [print(str(x)) for x in  files1]
+        else:
+            sys.exit('ERROR: No file available at that location')
         try:
             f1 = xr.open_mfdataset(files1,combine='by_coords')
         except:
-            print('Open by_coords did not work for:'+ ModelList.Centers[i]+
-                  '/'+ModelList.Models[i]+'/'+EXP[j])
+            print('Open by_coords did not work for:'+ ModelList.Center[i]+
+                  '/'+ModelList.Model[i]+'/'+EXP[j])
             print('Using nested option instead')
             f1 = xr.open_mfdataset(files1,combine='nested', concat_dim='time')
         VAR1   = f1[VAR].squeeze()
@@ -89,15 +88,11 @@ for j in range(2):
 
         if j == 0:
             # Add historical simulation as well
-            p = Path(DataDir+ModelList.Centers[i]+'/'+ModelList.Models[i]+
-                     '/historical/'+Freq)
-            files12 = list(p.glob('*/*/*/*/'+VAR+'/*'+VAR+'*.nc'))
-            vs = []
-            for k in range(len(files12)):
-                part = files12[k].parts
-                vs.append(part[len(part)-3])
-            vs.sort()
-            files12 = list(p.glob('*/*/*/'+vs[-1]+'/'+VAR+'/*'+VAR+'*.nc'))
+            p = Path(DataDir+'CMIP/'+ModelList.Center[i]+'/'+ModelList.Model[i]+
+                     '/historical/'+ModelList.Ensemble[i]+'/Omon/'+VAR+'/'+
+                     ModelList.Grid[i]+'/'+ModelList.historical_Version[i])
+            files12 = sorted(p.glob('*'+VAR+'*.nc'))
+
             print('### Also using these historical files: ###')
             [print(str(x)) for x in  files1]
             f12 = xr.open_mfdataset(files12,combine='by_coords')
@@ -114,7 +109,6 @@ for j in range(2):
             timeUT = xr.concat([timeUT12[ind12],timeUT11], dim='time')
             VAR1 = xr.concat([VAR12[ind12],VAR1], dim='time')
 
-
         # Convert from month to year
         try:
             VAR1.coords['year'] = VAR1.time.dt.year
@@ -125,15 +119,18 @@ for j in range(2):
         timeUTa = VAR1a.year
         if EXP[j] == 'piControl':
             # Assumes piControl simulation starts in 1850
+            # This is not the case for all models so it should be improved!
             timeUTa = timeUTa - timeUTa[0] + 1850.5
 
         dimtl = len(timeUTa)
 
-        if ( ModelList.Models[i] == 'bcc-csm1-1' or 
-             ModelList.Models[i] == 'bcc-csm1-1-m' or
-             ModelList.Models[i] == 'GISS-E2-R-CC' and 
-            (VAR in ['zossga', 'zostoga']) and EXP[j] != 'piControl'):
-            VAR1a = remove_discontinuities(VAR1a.values, 0.02)
+        # Look at the results to see for wihch model there is a need to remove 
+        # the discontinuities or apply to all models and output the locations of discontinuities?
+#         if ( ModelList.Models[i] == 'bcc-csm1-1' or 
+#              ModelList.Models[i] == 'bcc-csm1-1-m' or
+#              ModelList.Models[i] == 'GISS-E2-R-CC' and 
+#             (VAR in ['zossga', 'zostoga']) and EXP[j] != 'piControl'):
+#             VAR1a = remove_discontinuities(VAR1a.values, 0.02)
     
         print('Time vector timeUTa:')
         print(timeUTa[0])
@@ -145,19 +142,21 @@ for j in range(2):
         print('len(indt) '+str(len(indt)))
         print('len(indt2) '+str(len(indt2)))
 
-        if ([EXP[j], ModelList.Models[i], VAR] in 
-              [['piControl', 'MIROC-ESM-CHEM', 'zossga'], 
-               ['piControl', 'MIROC-ESM-CHEM', 'zostoga'], 
-               ['rcp45', 'CMCC-CM', 'zossga'], 
-               ['rcp85', 'HadGEM2-ES', 'zossga'], 
-               ['rcp85', 'HadGEM2-ES', 'zostoga'], 
-               ['rcp85', 'CNRM-CM5', 'zossga'], 
-               ['rcp85', 'CNRM-CM5', 'zosga']]):
-                # Missing year or double years so interpollate
-                AVAR1[j,i,indt2] = np.interp(time_all[indt2], timeUTa[indt], VAR1a[indt])
-        else:
-            AVAR1[j,i,indt2] = VAR1a[indt]
-
+#         if ([EXP[j], ModelList.Models[i], VAR] in 
+#               [['piControl', 'MIROC-ESM-CHEM', 'zossga'], 
+#                ['piControl', 'MIROC-ESM-CHEM', 'zostoga'], 
+#                ['rcp45', 'CMCC-CM', 'zossga'], 
+#                ['rcp85', 'HadGEM2-ES', 'zossga'], 
+#                ['rcp85', 'HadGEM2-ES', 'zostoga'], 
+#                ['rcp85', 'CNRM-CM5', 'zossga'], 
+#                ['rcp85', 'CNRM-CM5', 'zosga']]):
+#                 # Missing year or double years so interpollate
+#                 AVAR1[j,i,indt2] = np.interp(time_all[indt2], timeUTa[indt], VAR1a[indt])
+#         else:
+#             AVAR1[j,i,indt2] = VAR1a[indt]
+        # Will that be needed for CMIP6 as well?
+        AVAR1[j,i,indt2] = VAR1a[indt]
+        
         print('AVAR1[j,i,indt2]')
         print(AVAR1[j,i,indt2])
 
@@ -166,10 +165,9 @@ if year_max == 2300:
     for i in range(0,dimMod-1):
         tot_mis = np.sum(np.isnan(AVAR1[0,i,:]))
         if tot_mis <=50:
-            print(ModelList.Models[i])
+            print(ModelList.Model[i])
 
-### Adjust for reference period or using the first month
-
+### Adjust for reference period
 AVAR1c = np.zeros_like(AVAR1)
 indref = np.where((time_all > ref_p_min) & (time_all < ref_p_max))[0]
 for j in range(2):
@@ -183,13 +181,12 @@ Trend_piControl = AVAR1[1,:,:] - AVAR1ct[1,:,:]
 AVAR1ct[0,:,:] = AVAR1[0,:,:] - Trend_piControl
               
 # Re-correct for the reference period
-
 for j in range(2):
     for i in range(dimMod):
         AVAR1ct[j,i,:] = AVAR1ct[j,i,:] - AVAR1ct[j,i,indref].mean()
 
-### Compute mean and standard deviations of detrended and non-detrended time ##
-#series
+### Compute mean and standard deviations of detrended and non-detrended time
+# series
 AVAR1c_m   = np.mean(AVAR1c,axis=1)
 AVAR1c_sd  = np.std(AVAR1c,axis=1)
 AVAR1c_95p = AVAR1c_m + 1.64*AVAR1c_sd
@@ -224,16 +221,16 @@ print(str(AVAR1ct_m[0,indr].mean())+' [ '+str(AVAR1ct_05p[0,indr].mean())+' - '
 print("### Export data to a NetCDF file ######################################")
 
 # Build a DataSet
-da = xr.DataArray(AVAR1ct, coords=[ EXP, ModelList.Models, time_all], 
+da = xr.DataArray(AVAR1ct, coords=[ EXP, ModelList.Model, time_all], 
                   dims=['experiment', 'model', 'time'])
-MAT_OUT_ds = xr.Dataset({'ZOSTOGA_detrended': da})
+MAT_OUT_ds = xr.Dataset({var+'_detrended': da})
 
 MAT_OUT_ds.attrs['source_file'] = ('This NetCDF file was built from '+ 
-                                   'ComputeGlobalMeanThermalExpansion.py')
+                                   'ComputeGlobalMeanThermalExpansion_CMIP6.py')
 
 MAT_OUT_ds.attrs['creation_date'] = datetime.now().strftime('%Y-%m-%d %H:%M')
 
-NameOutput = 'CMIP5_SeaLevel_'+EXP[0]+'_'+VAR+'_'+str(year_min)+'-'+str(year_max)+'.nc'
+NameOutput = 'CMIP6_SeaLevel_'+EXP[0]+'_'+VAR+'_'+str(year_min)+'-'+str(year_max)+'.nc'
 if os.path.isfile(NameOutput):
     os.remove(NameOutput)
 MAT_OUT_ds.to_netcdf(NameOutput) #mode='a' to append or overwrite

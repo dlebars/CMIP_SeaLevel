@@ -129,12 +129,18 @@ for var in ['zostoga', 'zos']:
         ind_mods = select_models_intersection(CMIP6_path, exp_id, var)
         print('Models available for this combination:')
         print(ind_mods)
-        list_all_paths = select_paths(CMIP6_path, exp_id[0], var[0], ens1=True)
-        print('\n'.join(list_all_paths))
-        info_df = make_info_df(list_all_paths)
-        print('Info before final selection:')
-        print(info_df)
-        final_info_df = make_final_info_df(info_df, ind_mods)
+        for idx, ei in enumerate(exp_id):
+            list_all_paths = select_paths(CMIP6_path, ei, var[0], ens1=True)
+            #print('\n'.join(list_all_paths))
+            info_df = make_info_df(list_all_paths)
+            #print('Info before final selection:')
+            #print(info_df)
+            if idx == 0:
+                final_info_df = make_final_info_df(info_df, ind_mods)
+                final_info_df = final_info_df.rename(columns={'Version':ei+'_Version'})
+            else:
+                v_info_df = make_final_info_df(info_df, ind_mods)
+                final_info_df[ei+'_Version'] = v_info_df.Version
         print('Final info to be saved as csv file:')
         print(final_info_df)
         if (len(var) == 1) & (len(exp_id) == 3):

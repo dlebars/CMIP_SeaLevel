@@ -173,8 +173,7 @@ if year_max == 2300:
         if tot_mis <=50:
             print(ModelList.Models[i])
 
-### Adjust for reference period or using the first month
-
+### Adjust for reference period
 AVAR1c = np.zeros_like(AVAR1)
 indref = np.where((time_all > ref_p_min) & (time_all < ref_p_max))[0]
 for j in range(2):
@@ -188,7 +187,6 @@ Trend_piControl = AVAR1[1,:,:] - AVAR1ct[1,:,:]
 AVAR1ct[0,:,:] = AVAR1[0,:,:] - Trend_piControl
               
 # Re-correct for the reference period
-
 for j in range(2):
     for i in range(dimMod):
         AVAR1ct[j,i,:] = AVAR1ct[j,i,:] - AVAR1ct[j,i,indref].mean()
@@ -231,7 +229,7 @@ print("### Export data to a NetCDF file ######################################")
 # Build a DataSet
 da = xr.DataArray(AVAR1ct, coords=[ EXP, ModelList.Models, time_all], 
                   dims=['experiment', 'model', 'time'])
-MAT_OUT_ds = xr.Dataset({'ZOSTOGA_detrended': da})
+MAT_OUT_ds = xr.Dataset({VAR+'_detrended': da})
 
 MAT_OUT_ds.attrs['source_file'] = ('This NetCDF file was built from '+ 
                                    'ComputeGlobalMeanThermalExpansion.py')
