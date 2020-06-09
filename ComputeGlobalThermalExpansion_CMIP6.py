@@ -1,5 +1,5 @@
 ###############################################################################
-# ComputeGlobalMeanThermalExpansion.py: From CMIP5 data
+# ComputeGlobalMeanThermalExpansion_CMIP6.py: From CMIP6 data
 #   Python translation of PlotThermalExp.ncl
 ###############################################################################
 
@@ -28,8 +28,8 @@ def remove_discontinuities(da, gap):
 
 ###############################################################################
 
-VAR = 'zostoga' # zostoga, zossga, zosga
-EXP = ['rcp85','piControl']
+VAR = 'zostoga'
+EXP = ['ssp585','piControl'] # 'ssp119', 'ssp126', 'ssp245', 'ssp370', 'ssp585'
 
 ref_p_min = 1986
 ref_p_max = 2005
@@ -38,18 +38,13 @@ year_min = 1986  # Included
 year_max = 2100  # Excluded (2101)
 
 Freq     = 'mon'                         # Frequency of time output: mon or fx
-DataDir  = '/nobackup/users/bars/synda/cmip5/output1/'
-Dir_CMIP5_TE = '../CMIP5_ThermalExp/'
+DataDir  = '/nobackup_1/users/bars/synda_cmip6/CMIP6/'
+Dir_SelectPath = './SelectPaths_CMIP6/'
 
-col_names = ['Centers','Models']
-if year_max == 2300:
-    ModelList = pd.read_csv(Dir_CMIP5_TE+'CMIP5modelSelection_'+EXP[0]+'_'+VAR+
-                            '_2300.txt', delim_whitespace=True, 
-                            names=['Centers','Models'], comment='#')
-else:
-    ModelList = pd.read_csv(Dir_CMIP5_TE+'CMIP5modelSelection_'+EXP[0]+'_'+VAR+'.txt', 
-                            delim_whitespace=True, names=['Centers','Models'], 
-                            comment='#')
+ModelList = pd.read_csv(Dir_SelectPath+'AvailableExperiments_'+str(VAR)+
+                        '_historical_piControl_'+str(EXP[0])+'.csv')
+
+
 
 dimMod = len(ModelList.Models)
 dimt = year_max-year_min
