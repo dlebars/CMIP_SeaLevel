@@ -12,19 +12,17 @@ from datetime import datetime
 import sys
 
 ### Functions definition ######################################################
-def remove_discontinuities(da, gap):
-    '''Remove discontinuities in a time series, numpy or data array.
-    da: The input data, gap: the maximum gap allowed in the data above which 
-    the discontinuity is removed'''
-    da_out = da.copy()
-    diff = np.array(da[1:]) - np.array(da[:-1])
-    print(diff)
-    indpb = np.where(np.abs(diff) > gap)[0]
-    print("### Indices at which there are discontinuities: ####")
-    print(indpb)
-    for k in indpb:
-        da_out[k+1:] = da[k+1:] - da[k+1] + da[k]
-    return da_out
+
+def full_data_paths(DataDir, MIP, ModelList, EXP, VAR):
+    '''Provides a list of full paths to data'''
+    DataPath = (DataDir+MIP+'/'+ModelList.Center+'/'+ModelList.Model+
+                '/'+EXP+'/'+ModelList.Ensemble+'/Omon/'+VAR+'/'+
+                ModelList.Grid+'/'+ModelList[EXP+'_Version'])
+    print('Looking for files there:')
+    print(DataPath)
+    p = Path(DataPath)
+    all_files = sorted(p.glob('*'+VAR+'*.nc'))
+    return all_files
 
 ###############################################################################
 
@@ -51,21 +49,22 @@ time_all = np.arange(year_min, year_max)+0.5
 print(len(time_all))
 
 AVAR1  = np.zeros([2,dimMod,dimt])
-# Example of path:
-#/nobackup_1/users/bars/synda_cmip6/CMIP6/CMIP/NOAA-GFDL/GFDL-ESM4/historical/r1i1p1f1/Omon/zos/gr/v20190726
+
 for j in range(2):
     for i in range(dimMod):
         if (MIP[j] == 'ScenarioMIP') and  (ModelList.Model[i] == 'MPI-ESM1-2-HR'):
             # For this model the scenrios are done at DKRZ while piControl 
             # and historical are done at MPI-M
             ModelList.Center[i] = 'DKRZ'
-        DataPath = (DataDir+MIP[j]+'/'+ModelList.Center[i]+'/'+ModelList.Model[i]+
-                    '/'+EXP[j]+'/'+ModelList.Ensemble[i]+'/Omon/'+VAR+'/'+
-                    ModelList.Grid[i]+'/'+ModelList[EXP[j]+'_Version'][i])
-        print('Looking for files there:')
-        print(DataPath)
-        p = Path(DataPath)
-        files1 = sorted(p.glob('*'+VAR+'*.nc'))
+        files1 = full_data_paths(DataDir, MIP[j], ModelList.iloc[i], EXP[j], VAR)
+
+        if j==0:
+            if (ModelList.Model[i] == 'MPI-ESM1-2-HR'):
+                ModelList.Center[i] = 'MPI-M'
+            # Add historical simulation as well
+            files12 = full_data_paths(DataDir, 'CMIP', ModelList.iloc[i], 
+                                      'historical', VAR)
+            files1 = files12 + files1
         if len(files1) > 0:
             print('#### Using the following files: ####')
             [print(str(x)) for x in  files1]
@@ -90,31 +89,6 @@ for j in range(2):
             timeUT = np.array([time1[i].dt.year.values.item() for i in range(len(time1))])
             timeUT = xr.DataArray(timeUT, coords=[timeUT], dims=['time'])
 
-        if j == 0:
-            if (ModelList.Model[i] == 'MPI-ESM1-2-HR'):
-                ModelList.Center[i] = 'MPI-M'
-            # Add historical simulation as well
-            p = Path(DataDir+'CMIP/'+ModelList.Center[i]+'/'+ModelList.Model[i]+
-                     '/historical/'+ModelList.Ensemble[i]+'/Omon/'+VAR+'/'+
-                     ModelList.Grid[i]+'/'+ModelList.historical_Version[i])
-            files12 = sorted(p.glob('*'+VAR+'*.nc'))
-
-            print('### Also using these historical files: ###')
-            [print(str(x)) for x in  files1]
-            f12 = xr.open_mfdataset(files12,combine='by_coords')
-            timeUT11 = timeUT
-            time12   = f12.time
-            timeUT12 = time12.dt.year
-                           
-            # Need to remove overlap period
-            ind12    = np.where(timeUT12 < timeUT11[0])
-            print('ind12')
-            print(ind12)
-            VAR12     = f12[VAR].squeeze()
-
-            timeUT = xr.concat([timeUT12[ind12],timeUT11], dim='time')
-            VAR1 = xr.concat([VAR12[ind12],VAR1], dim='time')
-
         # Convert from month to year
         try:
             VAR1.coords['year'] = VAR1.time.dt.year
@@ -129,14 +103,6 @@ for j in range(2):
             timeUTa = timeUTa - timeUTa[0] + 1850.5
 
         dimtl = len(timeUTa)
-
-        # Look at the results to see for wihch model there is a need to remove 
-        # the discontinuities or apply to all models and output the locations of discontinuities?
-#         if ( ModelList.Models[i] == 'bcc-csm1-1' or 
-#              ModelList.Models[i] == 'bcc-csm1-1-m' or
-#              ModelList.Models[i] == 'GISS-E2-R-CC' and 
-#             (VAR in ['zossga', 'zostoga']) and EXP[j] != 'piControl'):
-#             VAR1a = remove_discontinuities(VAR1a.values, 0.02)
     
         print('Time vector timeUTa:')
         print(timeUTa[0])
@@ -148,19 +114,6 @@ for j in range(2):
         print('len(indt) '+str(len(indt)))
         print('len(indt2) '+str(len(indt2)))
 
-#         if ([EXP[j], ModelList.Models[i], VAR] in 
-#               [['piControl', 'MIROC-ESM-CHEM', 'zossga'], 
-#                ['piControl', 'MIROC-ESM-CHEM', 'zostoga'], 
-#                ['rcp45', 'CMCC-CM', 'zossga'], 
-#                ['rcp85', 'HadGEM2-ES', 'zossga'], 
-#                ['rcp85', 'HadGEM2-ES', 'zostoga'], 
-#                ['rcp85', 'CNRM-CM5', 'zossga'], 
-#                ['rcp85', 'CNRM-CM5', 'zosga']]):
-#                 # Missing year or double years so interpollate
-#                 AVAR1[j,i,indt2] = np.interp(time_all[indt2], timeUTa[indt], VAR1a[indt])
-#         else:
-#             AVAR1[j,i,indt2] = VAR1a[indt]
-        # Will that be needed for CMIP6 as well?
         AVAR1[j,i,indt2] = VAR1a[indt]
         
         print('AVAR1[j,i,indt2]')
