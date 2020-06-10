@@ -55,6 +55,10 @@ AVAR1  = np.zeros([2,dimMod,dimt])
 #/nobackup_1/users/bars/synda_cmip6/CMIP6/CMIP/NOAA-GFDL/GFDL-ESM4/historical/r1i1p1f1/Omon/zos/gr/v20190726
 for j in range(2):
     for i in range(dimMod):
+        if (MIP[j] == 'ScenarioMIP') and  (ModelList.Model[i] == 'MPI-ESM1-2-HR'):
+            # For this model the scenrios are done at DKRZ while piControl 
+            # and historical are done at MPI-M
+            ModelList.Center[i] = 'DKRZ'
         DataPath = (DataDir+MIP[j]+'/'+ModelList.Center[i]+'/'+ModelList.Model[i]+
                     '/'+EXP[j]+'/'+ModelList.Ensemble[i]+'/Omon/'+VAR+'/'+
                     ModelList.Grid[i]+'/'+ModelList[EXP[j]+'_Version'][i])
@@ -87,6 +91,8 @@ for j in range(2):
             timeUT = xr.DataArray(timeUT, coords=[timeUT], dims=['time'])
 
         if j == 0:
+            if (ModelList.Model[i] == 'MPI-ESM1-2-HR'):
+                ModelList.Center[i] = 'MPI-M'
             # Add historical simulation as well
             p = Path(DataDir+'CMIP/'+ModelList.Center[i]+'/'+ModelList.Model[i]+
                      '/historical/'+ModelList.Ensemble[i]+'/Omon/'+VAR+'/'+
@@ -223,7 +229,7 @@ print("### Export data to a NetCDF file ######################################")
 # Build a DataSet
 da = xr.DataArray(AVAR1ct, coords=[ EXP, ModelList.Model, time_all], 
                   dims=['experiment', 'model', 'time'])
-MAT_OUT_ds = xr.Dataset({var+'_detrended': da})
+MAT_OUT_ds = xr.Dataset({VAR+'_detrended': da})
 
 MAT_OUT_ds.attrs['source_file'] = ('This NetCDF file was built from '+ 
                                    'ComputeGlobalMeanThermalExpansion_CMIP6.py')
