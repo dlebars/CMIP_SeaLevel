@@ -35,9 +35,9 @@ ref_p_min = 1986
 ref_p_max = 2005
 
 year_min = 1986  # Included
-year_max = 2100  # Excluded (2101)
+year_max = 2100  # Excluded
 
-Freq     = 'mon'                         # Frequency of time output: mon or fx
+Freq     = 'mon' # Frequency of time output: mon or fx
 DataDir  = '/nobackup/users/bars/synda/cmip5/output1/'
 Dir_CMIP5_TE = '../CMIP5_ThermalExp/'
 
