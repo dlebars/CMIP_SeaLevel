@@ -59,9 +59,9 @@ for j in range(2):
         files1 = full_data_paths(DataDir, MIP[j], ModelList.iloc[i], EXP[j], VAR)
 
         if j==0:
+            # Add historical simulation as well
             if (ModelList.Model[i] == 'MPI-ESM1-2-HR'):
                 ModelList.Center[i] = 'MPI-M'
-            # Add historical simulation as well
             files12 = full_data_paths(DataDir, 'CMIP', ModelList.iloc[i], 
                                       'historical', VAR)
             files1 = files12 + files1
