@@ -37,8 +37,8 @@ year_min = 1986  # Included
 year_max = 2100  # Excluded (2101)
 
 DataDir  = '/nobackup_1/users/bars/synda_cmip6/CMIP6/'
-Dir_SelectPath = './SelectPaths_CMIP6/'
-
+Dir_SelectPath = '../SelectPaths_CMIP6/'
+Dir_outputs = '../outputs/'
 ModelList = pd.read_csv(Dir_SelectPath+'AvailableExperiments_'+str(VAR)+
                         '_historical_piControl_'+str(EXP[0])+'.csv')
 
@@ -189,7 +189,8 @@ MAT_OUT_ds.attrs['source_file'] = ('This NetCDF file was built from '+
 
 MAT_OUT_ds.attrs['creation_date'] = datetime.now().strftime('%Y-%m-%d %H:%M')
 
-NameOutput = 'CMIP6_SeaLevel_'+EXP[0]+'_'+VAR+'_'+str(year_min)+'-'+str(year_max)+'.nc'
+NameOutput = (Dir_outputs+'CMIP6_SeaLevel_'+EXP[0]+'_'+VAR+'_'+str(year_min)+'-'
+              +str(year_max)+'.nc')
 if os.path.isfile(NameOutput):
     os.remove(NameOutput)
 MAT_OUT_ds.to_netcdf(NameOutput) #mode='a' to append or overwrite
