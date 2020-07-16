@@ -3,13 +3,13 @@
 #   Python translation of PlotThermalExp.ncl
 ###############################################################################
 
-from pathlib import Path
 import pandas as pd
 import numpy as np
 import xarray as xr
 from scipy import signal
 import os
 from datetime import datetime
+import mod_loc as loc
 
 ### Functions definition ######################################################
 def remove_discontinuities(da, gap):
@@ -37,9 +37,7 @@ ref_p_max = 2005
 year_min = 1986  # Included
 year_max = 2100  # Excluded
 
-Freq     = 'mon' # Frequency of time output: mon or fx
-DataDir  = '/nobackup/users/bars/synda/cmip5/output1/'
-Dir_CMIP5_TE = '../CMIP5_ThermalExp/'
+Dir_CMIP5_TE = '../../CMIP5_ThermalExp/'
 
 col_names = ['Centers','Models']
 if year_max == 2300:
@@ -61,16 +59,8 @@ AVAR1  = np.zeros([2,dimMod,dimt])
 
 for j in range(2):
     for i in range(dimMod):
-        p = Path(DataDir+ModelList.Centers[i]+'/'+ModelList.Models[i]+
-                     '/'+EXP[j]+'/'+Freq)
-        files1 = list(p.glob('*/*/*/*/'+VAR+'/*'+VAR+'*.nc'))
-        # Select the last version of data: 
-        vs = []
-        for k in range(len(files1)):
-            part = files1[k].parts
-            vs.append(part[len(part)-3])
-        vs.sort()
-        files1 = sorted(p.glob('*/*/*/'+vs[-1]+'/'+VAR+'/*'+VAR+'*.nc')) # Switched list to sorted
+        files1 = loc.select_cmip5_files(VAR, EXP[j], ModelList.Centers[i], 
+                                    ModelList.Models[i])
         print('#### Using the following files: ####')
         [print(str(x)) for x in  files1]
         try:
@@ -94,15 +84,8 @@ for j in range(2):
 
         if j == 0:
             # Add historical simulation as well
-            p = Path(DataDir+ModelList.Centers[i]+'/'+ModelList.Models[i]+
-                     '/historical/'+Freq)
-            files12 = list(p.glob('*/*/*/*/'+VAR+'/*'+VAR+'*.nc'))
-            vs = []
-            for k in range(len(files12)):
-                part = files12[k].parts
-                vs.append(part[len(part)-3])
-            vs.sort()
-            files12 = list(p.glob('*/*/*/'+vs[-1]+'/'+VAR+'/*'+VAR+'*.nc'))
+            files12 = loc.select_cmip5_files(VAR, 'historical', ModelList.Centers[i], 
+                                         ModelList.Models[i])
             print('### Also using these historical files: ###')
             [print(str(x)) for x in  files1]
             f12 = xr.open_mfdataset(files12,combine='by_coords')

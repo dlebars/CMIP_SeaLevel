@@ -9,6 +9,10 @@
 # Equivalent to the former PrepThermalExpMapsTS.ncl script
 ###############################################################################
 
+import numpy as np
+import xarray as xr
+import mod_loc as loc
+
 VAR = 'zos'
 EXP = 'rcp85'
 
@@ -25,6 +29,7 @@ col_names = ['Centers','Models']
 ModelList = pd.read_csv(Dir_CMIP5_TE+'CMIP5modelSelection_'+EXP+'_'+VAR+'.txt', 
                         delim_whitespace=True, names=['Centers','Models'], 
                         comment='#')
+Models = ModelList.Models
 
 ###### Start and end of each period 
 # Erwin's project:
@@ -37,93 +42,92 @@ years_e = years_s+1
 mid = (years_e + years_s)/2
 
 #Read the regular 1*1 grid to use for regridded outputs
-DIRgrid     = '/nobackup/users/bars/SeaLevelFromHylke/CMIP5_OCEAN/Fingerprints/' # TODO: Add this grid to the project
-fgrid       = xr.open_dataset(DIRgrid+'Relative_icesheets.nc')
-LonOut      = fgrid->longitude
-LatOut      = fgrid->latitude
-dimLonOut   = dimsizes(LonOut)
-dimLatOut   = dimsizes(LatOut)
-cLatOut     = np.cos(np.deg2rad(LatOut)) # rad not defined
-;Build a mask for the new grid
-MaskOut     = fgrid->DYN_ANT
-MaskOut     = (/where(MaskOut.eq.0,1e+20,1)/)
-MaskOut@_FillValue = 1e+20
-; Mask the Caspian sea
-MaskOut({35:50},{45:56}) = MaskOut@_FillValue
-; New mask that includes the mediterranean
-MaskOut_Med              = MaskOut
-MaskOut_Med({20.5:41.5},{354:360}) = MaskOut_Med@_FillValue
-MaskOut_Med({20.5:41.5},{0:44})    = MaskOut_Med@_FillValue
-MaskOut_Med({41:47.5},{2:44})      = MaskOut_Med@_FillValue
+DIRgrid = '/nobackup/users/bars/SeaLevelFromHylke/CMIP5_OCEAN/Fingerprints/' # TODO: Add this standard grid somewhere to the project
+rg = xr.open_dataset(DIRgrid+'Relative_icesheets.nc')
 
-delim    = " "
-Centers  = rm_single_dims(str_get_field(ModelList, 1, delim))
-Models   = rm_single_dims(str_get_field(ModelList, 2, delim))
+dimLonOut   = len(rg.longitude)
+dimLatOut   = len(rg.latitude)
+cLatOut     = np.cos(np.deg2rad(rg.latitude))
+#Build a mask for the new grid
+MaskOut = rg.DYN_ANT
+MaskOut = MaskOut.where(MaskOut == 0, 1)
+MaskOut = MaskOut.where(MaskOut != 0)
+# Mask the Caspian sea
+MaskOut.loc[dict(latitude=slice(35,51), longitude=slice(45,56))] = np.nan
+# TODO: Should the center of Australia be also masked?
+# New mask that includes the mediterranean
+MaskOut_Med = MaskOut
+MaskOut_Med.loc[dict(latitude=slice(20.5,41.5), longitude=slice(354,360))] = np.nan
+MaskOut_Med.loc[dict(latitude=slice(20.5,41.5), longitude=slice(0,44))] = np.nan
+MaskOut_Med.loc[dict(latitude=slice(41,47.5), longitude=slice(2,44))] = np.nan
 
 print("Models used:")
 print(Models)
 
-dimMod   = dimsizes(Models)
+#TODO later
+# fref   = addfile("ReferenceZOS_ForEXP"+EXP+"_"+year_min_ref+"_"+year_max_ref+".nc", "r")
+# ftrend = addfile("TrendZOS_ForEXP"+EXP+".nc", "r")
 
-fref   = addfile("ReferenceZOS_ForEXP"+EXP+"_"+year_min_ref+"_"+year_max_ref+".nc", "r")
-ftrend = addfile("TrendZOS_ForEXP"+EXP+".nc", "r")
+#Read the average zos fields to discount from the model sea level
+# ;fzos_avg = addfile("CMIP5_SeaLevel_"+EXP+"_zos_avg_1950-2100.nc","r") ;For Sanne's project
+# fzos_avg = addfile("CMIP5_SeaLevel_"+EXP+"_zos_avg_"+year_min_ref+"-2100.nc","r")
+# ;fzos_avg = addfile("CMIP5_SeaLevel_"+EXP+"_zos_avg_1900-2006.nc","r") ;For Star's historical files
 
-;Read the average zos fields to discount from the model sea level
-;fzos_avg = addfile("CMIP5_SeaLevel_"+EXP+"_zos_avg_1950-2100.nc","r") ;For Sanne's project
-fzos_avg = addfile("CMIP5_SeaLevel_"+EXP+"_zos_avg_"+year_min_ref+"-2100.nc","r")
-;fzos_avg = addfile("CMIP5_SeaLevel_"+EXP+"_zos_avg_1900-2006.nc","r") ;For Star's historical files
+#zos_avg_ModelNames = tostring(fzos_avg->ModelNames)
+#zos_avg  = fzos_avg->AverageSeaLevel
+#time_zos_avg = fzos_avg->time
+#print("Check the time vector:")
+#print(time_zos_avg)
+#indzosref   = ind((time_zos_avg.ge.year_min_ref).and.(time_zos_avg.lt.year_max_ref))
+#zos_avg_ref =  dim_avg_n(zos_avg(:,indzosref),1)
 
-zos_avg_ModelNames = tostring(fzos_avg->ModelNames)
-zos_avg  = fzos_avg->AverageSeaLevel
-time_zos_avg = fzos_avg->time
-print("Check the time vector:")
-print(time_zos_avg)
-indzosref   = ind((time_zos_avg.ge.year_min_ref).and.(time_zos_avg.lt.year_max_ref))
-zos_avg_ref =  dim_avg_n(zos_avg(:,indzosref),1)
+for i in range(0,len(ModelList.Models)):
+    print('####### Working on model '+i+','+Models[i]+'  #####')
+    #### Read scenario data
+    files1 = loc.select_cmip5_files(VAR, EXP, ModelList.Centers[i], 
+                                ModelList.Models[i])
+    print('#### Using following files: ####')
+    print(files1)
+    try:
+        f1 = xr.open_mfdataset(files1,combine='by_coords')
+    except:
+        print('Open by_coords did not work for:'+ ModelList.Centers[i]+
+              '/'+ModelList.Models[i]+'/'+EXP)
+        print('Using nested option instead')
+        f1 = xr.open_mfdataset(files1,combine='nested', concat_dim='time')
+    VAR1 = f1[VAR].squeeze()
 
-do i=30,30 ;0,dimMod-1
-  print("####### Working on model "+i+","+Models(i)+"  #####")
+    print(VAR1)
+    time1  = f1.time
+    dimt1  = len(time1)
+    try:
+        timeUT = time1.dt.year
+    except:
+        # Mix of time format, dt needs to be applied element wise
+        timeUT = np.array([time1[i].dt.year.values.item() for i in range(len(time1))])
+        timeUT = xr.DataArray(timeUT, coords=[timeUT], dims=['time'])
 
-  ; #### Read scenario data
-  file_name = DataDir+Centers(i)+"/"+Models(i)+"/"+EXP+"/"+Freq
-  files1 = systemfunc("ls "+file_name+"/*/*/*/*/"+VAR(0)+"/*"+VAR(0)+"*.nc")
-  ;Use last version of data:
-  vs1    = str_get_field(files1, 14,"/")
-  delete(files1)
-  files1 = systemfunc("ls "+file_name+"/*/*/*/"+vs1(dimsizes(vs1)-1)+"/"+VAR+"/*"+VAR+"*.nc")
-  print("#### Using following files: ####")
-  print(files1)
-  f1      = addfiles(files1,"r")
-  f1s     = addfile(files1(0),"r") ; Need this trick to avoid issues of adding
-                                   ; lon or lat coordinate arrays from addfiles
-  time1  = f1[:]->time
-
-  if time1@calendar.eq."proleptic_gregorian" then
-    time1@calendar = "gregorian"
-  end if
-  timeUT = cd_calendar(time1, 4)
-
-  ; #### Read historical data
-  file_name  = DataDir+Centers(i)+"/"+Models(i)+"/historical/"+Freq
-  files2    = systemfunc("ls "+file_name+"/*/*/*/*/"+VAR+"/*"+VAR+"*.nc")
-  vs2        = str_get_field(files2, 14,"/")
-  delete(files2)
-  files2 = systemfunc("ls "+file_name+"/*/*/*/"+vs2(dimsizes(vs2)-1)+"/"+VAR+"/*"+VAR+"*.nc")
-  print("### Also using these historical files: ###")
-  print(files2)
-  f2      = addfiles(files2,"r")
-  time2   = f2[:]->time
-  if time2@calendar.eq."proleptic_gregorian" then
+    ; #### Read historical data
+    file_name  = DataDir+Centers(i)+"/"+Models(i)+"/historical/"+Freq
+    files2    = systemfunc("ls "+file_name+"/*/*/*/*/"+VAR+"/*"+VAR+"*.nc")
+    vs2        = str_get_field(files2, 14,"/")
+    delete(files2)
+    files2 = systemfunc("ls "+file_name+"/*/*/*/"+vs2(dimsizes(vs2)-1)+"/"+VAR+"/*"+VAR+"*.nc")
+    print("### Also using these historical files: ###")
+    print(files2)
+    f2      = addfiles(files2,"r")
+    time2   = f2[:]->time
+    if time2@calendar.eq."proleptic_gregorian" then
     time2@calendar = "gregorian"
-  end if
-  timeUT2 = cd_calendar(time2, 4)
+    end if
+    timeUT2 = cd_calendar(time2, 4)
 
-  lat    = f1s->lat
-  lon    = f1s->lon
-  printVarSummary(lon)
-  printVarSummary(lat)
-  dimlat = dimsizes(dimsizes(lat))
-  dimlon = dimsizes(dimsizes(lon))
+    lat    = f1s->lat
+    lon    = f1s->lon
+    printVarSummary(lon)
+    printVarSummary(lat)
+    dimlat = dimsizes(dimsizes(lat))
+    dimlon = dimsizes(dimsizes(lon))
 
   if (Models(i).eq."bcc-csm1-1").or.(Models(i).eq."bcc-csm1-1-m").or. \
      (Models(i).eq."GFDL-ESM2G").or.(Models(i).eq."GFDL-ESM2M").or. \
@@ -194,9 +198,9 @@ do i=30,30 ;0,dimMod-1
         
 ;Regrid to the reference 1*1 degree grid
       if dimlat.eq.1 then
-        DTrendVAR1_reg = linint2(lon,lat,DTrendVAR1,True,LonOut,LatOut,0)
+        DTrendVAR1_reg = linint2(lon,lat,DTrendVAR1,True,rg.longitude,rg.latitude,0)
         else if dimlat.eq.2 then
-           DTrendVAR1_reg = rcm2rgrid(lat,lon,DTrendVAR1,LatOut,LonOut,1)
+           DTrendVAR1_reg = rcm2rgrid(lat,lon,DTrendVAR1,rg.latitude,rg.longitude,1)
         end if
       end if
       ;Can mask other problematic regions here
@@ -230,8 +234,8 @@ do i=30,30 ;0,dimMod-1
   MAT_CorrectedZOS_reg!1 = "latitude"
   MAT_CorrectedZOS_reg!2 = "longitude"
   MAT_CorrectedZOS_reg&time = mid
-  MAT_CorrectedZOS_reg&latitude = LatOut
-  MAT_CorrectedZOS_reg&longitude = LonOut
+  MAT_CorrectedZOS_reg&latitude = rg.latitude
+  MAT_CorrectedZOS_reg&longitude = rg.longitude
 
   ;### Export in NetCDF file
   Name_NetCDF = DirOut+"/CorrectedZOS_EXP"+EXP+"_"+Models(i)+".nc"
