@@ -15,34 +15,35 @@ EXP = 'rcp85'
 year_min_ref = 1986  # Included. Beginning of reference period
 year_max_ref = 2006  # Excluded. End of reference period
 
-Freq     = "mon"  # Frequency of time output: mon or fx (only to read inputs)
-DataDir  = "/nobackup/users/bars/synda/cmip5/output1/"
+Freq     = 'mon'  # Frequency of time output: mon or fx (only to read inputs)
+DataDir  = '/nobackup/users/bars/synda/cmip5/output1/'
 
-DirOut   = "CorrectedZOS_TS_yearly"
-ModelList = readAsciiTable("CMIP5modelSelection_"+EXP+"_"+VAR+".txt",1,"string",1)
+DirOut   = '../outputs/'
+Dir_CMIP5_TE = '../CMIP5_ThermalExp/'
 
-;##### Start and end of each period 
-; Sanne's project:
-;years_s = (/ 1950, 1965, 1980, 1995, 2006, 2020, 2035 /)
-;years_e = (/ 1965, 1980, 1995, 2006, 2020, 2035, 2050 /)
-; Erwin's project:
-years_s = ispan(2006,2100,1)
-years_e = ispan(2006+1,2101,1)
-; Star's project
-;years_s = ispan(1900,2005,1)
-;years_e = ispan(1900+1,2005+1,1)
+col_names = ['Centers','Models']
+ModelList = pd.read_csv(Dir_CMIP5_TE+'CMIP5modelSelection_'+EXP+'_'+VAR+'.txt', 
+                        delim_whitespace=True, names=['Centers','Models'], 
+                        comment='#')
+
+###### Start and end of each period 
+# Erwin's project:
+years_s = np.arange(2006,2101)
+years_e = years_s+1
+# Star's project, historical period
+#years_s = ispan(1900,2005,1)
+#years_e = ispan(1900+1,2005+1,1)
 
 mid = (years_e + years_s)/2
-dimy = dimsizes(years_s)
 
-;Read the regular 1*1 grid to use for regridded outputs
-DIRgrid     = "/nobackup/users/bars/SeaLevelFromHylke/CMIP5_OCEAN/Fingerprints/"
-fgrid       = addfile(DIRgrid+"Relative_icesheets.nc","r")
+#Read the regular 1*1 grid to use for regridded outputs
+DIRgrid     = '/nobackup/users/bars/SeaLevelFromHylke/CMIP5_OCEAN/Fingerprints/' # TODO: Add this grid to the project
+fgrid       = xr.open_dataset(DIRgrid+'Relative_icesheets.nc')
 LonOut      = fgrid->longitude
 LatOut      = fgrid->latitude
 dimLonOut   = dimsizes(LonOut)
 dimLatOut   = dimsizes(LatOut)
-cLatOut     = cos(LatOut*rad) # rad not defined
+cLatOut     = np.cos(np.deg2rad(LatOut)) # rad not defined
 ;Build a mask for the new grid
 MaskOut     = fgrid->DYN_ANT
 MaskOut     = (/where(MaskOut.eq.0,1e+20,1)/)
@@ -137,10 +138,10 @@ do i=30,30 ;0,dimMod-1
   MaskRefVAR1  = where((RefVAR1_corr.ge.2).or.(RefVAR1_corr.le.-2),1e+20,1)
   MaskRefVAR1@_FillValue = 1e+20
 
-  MAT_CorrectedZOS_reg = new((/dimy,dimLatOut,dimLonOut/),float)
+  MAT_CorrectedZOS_reg = new((/len(years_s),dimLatOut,dimLonOut/),float)
     
   ;##### Loop on the years ######################################
-  do y=0,dimy-1
+  do y=0,len(years_s)-1
     print("Workgin on period: "+years_s(y)+"-"+years_e(y))
     indzossel   = ind((time_zos_avg.ge.years_s(y)).and.(time_zos_avg.lt.years_e(y)))
     if ismissing(indzossel) then
