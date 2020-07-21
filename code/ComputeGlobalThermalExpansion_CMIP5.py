@@ -70,7 +70,7 @@ for j in range(2):
                   '/'+ModelList.Models[i]+'/'+EXP[j])
             print('Using nested option instead')
             f1 = xr.open_mfdataset(files1,combine='nested', concat_dim='time')
-        VAR1   = f1[VAR].squeeze()
+        VAR1 = f1[VAR].squeeze()
 
         print(VAR1)
         time1  = f1.time

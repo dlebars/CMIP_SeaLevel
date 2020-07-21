@@ -12,6 +12,8 @@
 import numpy as np
 import xarray as xr
 import mod_loc as loc
+import pandas as pd
+import xesmf as xe
 
 VAR = 'zos'
 EXP = 'rcp85'
@@ -23,7 +25,7 @@ Freq     = 'mon'  # Frequency of time output: mon or fx (only to read inputs)
 DataDir  = '/nobackup/users/bars/synda/cmip5/output1/'
 
 DirOut   = '../outputs/'
-Dir_CMIP5_TE = '../CMIP5_ThermalExp/'
+Dir_CMIP5_TE = '../../CMIP5_ThermalExp/'
 
 col_names = ['Centers','Models']
 ModelList = pd.read_csv(Dir_CMIP5_TE+'CMIP5modelSelection_'+EXP+'_'+VAR+'.txt', 
@@ -61,27 +63,32 @@ MaskOut_Med.loc[dict(latitude=slice(20.5,41.5), longitude=slice(354,360))] = np.
 MaskOut_Med.loc[dict(latitude=slice(20.5,41.5), longitude=slice(0,44))] = np.nan
 MaskOut_Med.loc[dict(latitude=slice(41,47.5), longitude=slice(2,44))] = np.nan
 
+# Make a dataset for easy regridding with xESMF
+ds_out = xr.Dataset({'lat': (['lat'], rg.latitude),
+                     'lon': (['lon'], rg.longitude)})
+
 print("Models used:")
 print(Models)
 
 #TODO later
-# fref   = addfile("ReferenceZOS_ForEXP"+EXP+"_"+year_min_ref+"_"+year_max_ref+".nc", "r")
-# ftrend = addfile("TrendZOS_ForEXP"+EXP+".nc", "r")
+fref   = xr.open_dataset(Dir_CMIP5_TE+'ReferenceZOS_ForEXP'+EXP+'_'+
+                         year_min_ref+'_'+year_max_ref+'.nc')
+ftrend = xr.open_dataset(Dir_CMIP5_TE+'TrendZOS_ForEXP'+EXP+'.nc')
 
 #Read the average zos fields to discount from the model sea level
 # ;fzos_avg = addfile("CMIP5_SeaLevel_"+EXP+"_zos_avg_1950-2100.nc","r") ;For Sanne's project
-# fzos_avg = addfile("CMIP5_SeaLevel_"+EXP+"_zos_avg_"+year_min_ref+"-2100.nc","r")
+fzos_avg = xr.open_dataset('CMIP5_SeaLevel_'+EXP+'_zos_avg_'+year_min_ref+'-2100.nc')
 # ;fzos_avg = addfile("CMIP5_SeaLevel_"+EXP+"_zos_avg_1900-2006.nc","r") ;For Star's historical files
 
-#zos_avg_ModelNames = tostring(fzos_avg->ModelNames)
-#zos_avg  = fzos_avg->AverageSeaLevel
-#time_zos_avg = fzos_avg->time
-#print("Check the time vector:")
-#print(time_zos_avg)
-#indzosref   = ind((time_zos_avg.ge.year_min_ref).and.(time_zos_avg.lt.year_max_ref))
-#zos_avg_ref =  dim_avg_n(zos_avg(:,indzosref),1)
+zos_avg_ModelNames = fzos_avg.ModelNames
+zos_avg  = fzos_avg.AverageSeaLevel
+time_zos_avg = fzos_avg.time
+print('Check the time vector:')
+print(time_zos_avg)
+indzosref = np.where((time_zos_avg >= year_min_ref) and (time_zos_avg < year_max_ref))
+zos_avg_ref =  zos_avg(:,indzosref).mean(axis=1)
 
-for i in range(0,len(ModelList.Models)):
+for i in range(len(ModelList.Models)):
     print('####### Working on model '+i+','+Models[i]+'  #####')
     #### Read scenario data
     files1 = loc.select_cmip5_files(VAR, EXP, ModelList.Centers[i], 
@@ -107,168 +114,120 @@ for i in range(0,len(ModelList.Models)):
         timeUT = np.array([time1[i].dt.year.values.item() for i in range(len(time1))])
         timeUT = xr.DataArray(timeUT, coords=[timeUT], dims=['time'])
 
-    ; #### Read historical data
-    file_name  = DataDir+Centers(i)+"/"+Models(i)+"/historical/"+Freq
-    files2    = systemfunc("ls "+file_name+"/*/*/*/*/"+VAR+"/*"+VAR+"*.nc")
-    vs2        = str_get_field(files2, 14,"/")
-    delete(files2)
-    files2 = systemfunc("ls "+file_name+"/*/*/*/"+vs2(dimsizes(vs2)-1)+"/"+VAR+"/*"+VAR+"*.nc")
-    print("### Also using these historical files: ###")
+    #### Read historical data    
+    files2 = loc.select_cmip5_files(VAR, 'historical', ModelList.Centers[i], 
+                                    ModelList.Models[i])
+    
+    print('### Also using these historical files: ###')
     print(files2)
-    f2      = addfiles(files2,"r")
-    time2   = f2[:]->time
-    if time2@calendar.eq."proleptic_gregorian" then
-    time2@calendar = "gregorian"
-    end if
-    timeUT2 = cd_calendar(time2, 4)
+    f2 = xr.open_mfdataset(files2,combine='by_coords')
+    time2 = f2.time
+    timeUT2 = time2.dt.year
 
-    lat    = f1s->lat
-    lon    = f1s->lon
-    printVarSummary(lon)
-    printVarSummary(lat)
-    dimlat = dimsizes(dimsizes(lat))
-    dimlon = dimsizes(dimsizes(lon))
+    lat    = f1.lat
+    lon    = f1.lon
+    print(lon)
+    print(lat)
+    dimlat = len(lat.shape)
+    dimlon = len(lon.shape)
 
-  if (Models(i).eq."bcc-csm1-1").or.(Models(i).eq."bcc-csm1-1-m").or. \
+    regridder = xe.Regridder(f1, ds_out, 'bilinear')
+    print(regridder)
+    
+    #TODO: This lon might not be necessary, only used in interpollation
+    if (Models(i).eq."bcc-csm1-1").or.(Models(i).eq."bcc-csm1-1-m").or. \
      (Models(i).eq."GFDL-ESM2G").or.(Models(i).eq."GFDL-ESM2M").or. \
      (Models(i).eq."GFDL-CM3") then
-    lon = where(lon.lt.0,lon+360,lon)
-  end if
+        lon = np.where(lon<0,lon+360,lon)
 
-  RefVAR1    = fref->$Models(i)$
-  ; Use the reference field to mask the small seas that are not connected to the
-  ; ocean and areas where sea ice is included on the ocean load
-  RefVAR1_corr = RefVAR1 - dim_avg_n(dim_avg_n(RefVAR1,0),0)
-  MaskRefVAR1  = where((RefVAR1_corr.ge.2).or.(RefVAR1_corr.le.-2),1e+20,1)
-  MaskRefVAR1@_FillValue = 1e+20
+    RefVAR1    = fref[Models(i)]
+    # Use the reference field to mask the small seas that are not connected to the
+    # ocean and areas where sea ice is included on the ocean load
+    RefVAR1_corr = RefVAR1 - RefVAR1.mean
+    MaskRefVAR1  = np.where((RefVAR1_corr>=2) | (RefVAR1_corr<=-2),np.nan,1)
 
-  MAT_CorrectedZOS_reg = new((/len(years_s),dimLatOut,dimLonOut/),float)
+    MAT_CorrectedZOS_reg = np.zeros([len(years_s),dimLatOut,dimLonOut])
     
-  ;##### Loop on the years ######################################
-  do y=0,len(years_s)-1
-    print("Workgin on period: "+years_s(y)+"-"+years_e(y))
-    indzossel   = ind((time_zos_avg.ge.years_s(y)).and.(time_zos_avg.lt.years_e(y)))
-    if ismissing(indzossel) then
-      print("No data during the period: "+years_s(y)+"-"+years_e(y))
-      MAT_CorrectedZOS_reg(y,:,:) = MAT_CorrectedZOS_reg@_FillValue
-    else
-      dim_indzossel = dimsizes(indzossel)
-      if dim_indzossel.eq.1 then
-        zos_avg_sel =  zos_avg(:,indzossel)
-      else
-        zos_avg_sel =  dim_avg_n(zos_avg(:,indzossel),1)
-      end if
+    ##### Loop on the years ######################################
+    for y in range(len(years_s)):
+        print('Working on period: '+years_s[y]+'-'+years_e[y])
+        indzossel   = np.where((time_zos_avg>=years_s[y]) & (time_zos_avg<years_e[y]))
+        if indzossel.size == 0:
+            print('No data during the period: '+years_s[y]+'-'+years_e[y])
+            MAT_CorrectedZOS_reg[y,:,:] = np.nan
+        else:
+            if len(indzossel) == 1:
+                zos_avg_sel = zos_avg[:,indzossel]
+            else:
+                zos_avg_sel = zos_avg[:,indzossel].mean(axis=1)
 
-      if years_s(y).ge.2006 then
-        ind_time_sel = ind((timeUT.ge.years_s(y)).and.(timeUT.le.years_e(y)))
-        VAR1    = f1[:]->$VAR(0)$(ind_time_sel,:,:)
-      else
-        ind_time_sel = ind((timeUT2.ge.years_s(y)).and.(timeUT2.le.years_e(y)))
-        VAR1    = f2[:]->$VAR(0)$(ind_time_sel,:,:)
-      end if
+            if years_s[y]>=2006:
+                ind_time_sel = np.where((timeUT>=years_s[y]) & (timeUT<=years_e[y]))
+                VAR1 = f1[VAR][ind_time_sel,:,:]
+            else
+                ind_time_sel = np.where((timeUT2>=years_s[y]) & (timeUT2<=years_e[y]))
+                VAR1 = f2[VAR][ind_time_sel,:,:]
 
-      if (Models(i).eq."MIROC5").or.(Models(i).eq."GISS-E2-R").or. \
-         (Models(i).eq."GISS-E2-R-CC").or.(Models(i).eq."EC-EARTH").or. \
-         (Models(i).eq."MRI-CGCM3") then
-;        VAR1@_FillValue = 0
-         VAR1 = where(VAR1.eq.0,1e+20,VAR1)
-      end if
-      if Models(i).eq."EC-EARTH" then
-         VAR1@_FillValue = 1e+20
-      end if
+            if (Models[i] in ['MIROC5', 'GISS-E2-R', 'GISS-E2-R-CC', 'EC-EARTH', 
+                              'MRI-CGCM3']): 
+                VAR1 = np.where(VAR1==0,np.nan,VAR1)
 
-      dimVAR1 = dimsizes(VAR1)
-      VAR1avg = dim_avg_n_Wrap(VAR1,0) ; Compute time average
-      ind_zos_avg = ind(zos_avg_ModelNames.eq.Models(i))
-      AnomVAR1   = VAR1avg ; Read metadata
-      AnomVAR1   = (/(VAR1avg - RefVAR1)/)*100
-      AnomVAR1   = (/AnomVAR1*MaskRefVAR1/)
+            VAR1avg = VAR1.mean(axis=0) # Compute time average
+            ind_zos_avg = np.where(zos_avg_ModelNames==Models[i])
+            AnomVAR1 = (VAR1avg - RefVAR1)*100 # Convert m to cm
+            AnomVAR1 = AnomVAR1*MaskRefVAR1
 
-      ZOS_AVG_CORR = tofloat((zos_avg_sel(ind_zos_avg) - zos_avg_ref(ind_zos_avg))*100)
+            ZOS_AVG_CORR = (zos_avg_sel[ind_zos_avg] - 
+                            zos_avg_ref[ind_zos_avg])*100
 
-      ; Effective number of years to detrend: year of interest 
-      ; minus mean of reference period
-      nbyears = mid(y) - (year_max_ref+year_min_ref)/2
+            # Effective number of years to detrend: year of interest 
+            # minus mean of reference period
+            nbyears = mid[y] - [year_max_ref+year_min_ref]/2
 
-      TrendVAR1  = AnomVAR1 ; Read metadata
-      TrendVAR1  = (/(ftrend->$Models(i)$)*nbyears/)*100
-
-      DTrendVAR1 = AnomVAR1 ; Read metadata 
-      DTrendVAR1 = (/AnomVAR1 - TrendVAR1 - ZOS_AVG_CORR/)
+            TrendVAR1 = ftrend[Models[i]]*nbyears*100
+            DTrendVAR1 = AnomVAR1 - TrendVAR1 - ZOS_AVG_CORR
         
-;Regrid to the reference 1*1 degree grid
-      if dimlat.eq.1 then
-        DTrendVAR1_reg = linint2(lon,lat,DTrendVAR1,True,rg.longitude,rg.latitude,0)
-        else if dimlat.eq.2 then
-           DTrendVAR1_reg = rcm2rgrid(lat,lon,DTrendVAR1,rg.latitude,rg.longitude,1)
-        end if
-      end if
-      ;Can mask other problematic regions here
-      DTrendVAR1_reg@_FillValue = 1e+20
-      if (Models(i).eq."MIROC5").or.(Models(i).eq."GFDL-ESM2M").or. \
-         (Models(i).eq."GISS-E2-R").or.(Models(i).eq."GISS-E2-R-CC") then
-        DTrendVAR1_reg  = DTrendVAR1_reg*MaskOut_Med
-        else
-          DTrendVAR1_reg  = DTrendVAR1_reg*MaskOut
-      end if
-      poisson_grid_fill(DTrendVAR1_reg,True,1,100,1,0.5,0)
-      DTrendVAR1_reg  = DTrendVAR1_reg*MaskOut
+            # Regrid to the reference 1*1 degree grid            
+            DTrendVAR1_reg = regridder(DTrendVAR1)
 
-      area_mean       = wgt_areaave_Wrap(DTrendVAR1_reg, cLatOut, 1.0, 0)
-      print("Removing area mean of:" + area_mean + " cm")
+            # Mask other problematic regions here
+#           DTrendVAR1_reg@_FillValue = 1e+20
+#           if (Models(i).eq."MIROC5").or.(Models(i).eq."GFDL-ESM2M").or. \
+#              (Models(i).eq."GISS-E2-R").or.(Models(i).eq."GISS-E2-R-CC") then
+#             DTrendVAR1_reg  = DTrendVAR1_reg*MaskOut_Med
+#             else
+#               DTrendVAR1_reg  = DTrendVAR1_reg*MaskOut
+#           end if
+            
+            # Fill the NaN values TODO              
+            # NCL command: poisson_grid_fill(DTrendVAR1_reg,True,1,100,1,0.5,0)
+            DTrendVAR1_reg  = DTrendVAR1_reg*MaskOut
+            
 
-      MAT_CorrectedZOS_reg(y,:,:) = DTrendVAR1_reg - area_mean
-      delete(indzossel)
-      delete(VAR1)
-      delete(VAR1avg)
-      delete(ind_time_sel)
-      delete(AnomVAR1)
-      delete(TrendVAR1)
-      delete(DTrendVAR1)
-      delete(DTrendVAR1_reg)
-      delete(area_mean)
-    end if
-  end do
+#             area_mean       = wgt_areaave_Wrap(DTrendVAR1_reg, cLatOut, 1.0, 0) TODO
+#             print("Removing area mean of:" + area_mean + " cm")
+#            MAT_CorrectedZOS_reg(y,:,:) = DTrendVAR1_reg - area_mean
 
-  MAT_CorrectedZOS_reg!0 = "time"
-  MAT_CorrectedZOS_reg!1 = "latitude"
-  MAT_CorrectedZOS_reg!2 = "longitude"
-  MAT_CorrectedZOS_reg&time = mid
-  MAT_CorrectedZOS_reg&latitude = rg.latitude
-  MAT_CorrectedZOS_reg&longitude = rg.longitude
+    print(DTrendVAR1_reg)
+#     MAT_CorrectedZOS_reg!0 = "time"
+#     MAT_CorrectedZOS_reg!1 = "latitude"
+#     MAT_CorrectedZOS_reg!2 = "longitude"
+#     MAT_CorrectedZOS_reg&time = mid
+#     MAT_CorrectedZOS_reg&latitude = rg.latitude
+#     MAT_CorrectedZOS_reg&longitude = rg.longitude
 
-  ;### Export in NetCDF file
-  Name_NetCDF = DirOut+"/CorrectedZOS_EXP"+EXP+"_"+Models(i)+".nc"
-  system("/bin/rm -f "+Name_NetCDF)    ; remove any pre-existing file
-  ncdf = addfile(Name_NetCDF ,"c")     ; open output netCDF file
+#     ;### Export in NetCDF file
+#     Name_NetCDF = DirOut+"/CorrectedZOS_EXP"+EXP+"_"+Models(i)+".nc"
+#     system("/bin/rm -f "+Name_NetCDF)    ; remove any pre-existing file
+#     ncdf = addfile(Name_NetCDF ,"c")     ; open output netCDF file
 
-  fAtt               = True            ; assign file attributes
-  fAtt@title         = "Storage of zos state" + \
-                     " with reference the period "+year_min_ref+"-"+year_max_ref+ \
-                     " corrected for pre-industrial control trend and for global zos change."
-  fAtt@creation_date = systemfunc ("date")
-  fileattdef( ncdf, fAtt )            ; copy file attributes
+#     fAtt               = True            ; assign file attributes
+#     fAtt@title         = "Storage of zos state" + \
+#                      " with reference the period "+year_min_ref+"-"+year_max_ref+ \
+#                      " corrected for pre-industrial control trend and for global zos change."
+#     fAtt@creation_date = systemfunc ("date")
+#     fileattdef( ncdf, fAtt )            ; copy file attributes
 
-  ncdf->CorrectedZOS_reg = MAT_CorrectedZOS_reg
-  ncdf->year_min_ref     = year_min_ref
-  ncdf->year_max_ref     = year_max_ref
-
-  delete(vs1)
-  delete(files1)
-  delete(f1)
-  delete(time1)
-  delete(timeUT)
-  delete(vs2)
-  delete(files2)
-  delete(f2)
-  delete(time2)
-  delete(timeUT2)
-  delete(lat)
-  delete(lon)
-  delete(RefVAR1)
-  delete(MaskRefVAR1)
-  delete(RefVAR1_corr)
-  delete(ZOS_AVG_CORR)
-  delete(ncdf)
-  delete(MAT_CorrectedZOS_reg)
-end do
+#     ncdf->CorrectedZOS_reg = MAT_CorrectedZOS_reg
+#     ncdf->year_min_ref     = year_min_ref
+#     ncdf->year_max_ref     = year_max_ref
