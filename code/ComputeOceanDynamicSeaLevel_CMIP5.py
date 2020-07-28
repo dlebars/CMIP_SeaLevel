@@ -14,6 +14,8 @@ import xarray as xr
 import mod_loc as loc
 import pandas as pd
 import xesmf as xe
+from datetime import datetime
+import os
 
 def read_ModelNames(ds):
     '''Read model names, this need a little function because characters are not
@@ -28,11 +30,13 @@ EXP = 'rcp85'
 
 year_min_ref = 1986  # Included. Beginning of reference period
 year_max_ref = 2006  # Excluded. End of reference period
+year_min = 2006
+year_max = 2101
 
 Freq     = 'mon'  # Frequency of time output: mon or fx (only to read inputs)
 DataDir  = '/nobackup/users/bars/synda/cmip5/output1/'
 
-DirOut   = '../outputs/'
+Dir_outputs = '../outputs/'
 Dir_CMIP5_TE = '../../CMIP5_ThermalExp/'
 
 col_names = ['Centers','Models']
@@ -43,7 +47,7 @@ Models = ModelList.Models
 
 ###### Start and end of each period 
 # Erwin's project:
-years_s = np.arange(2006,2101)
+years_s = np.arange(year_min,year_max)
 years_e = years_s+1
 # Star's project, historical period
 #years_s = ispan(1900,2005,1)
@@ -98,7 +102,7 @@ indzosref = np.where((time_zos_avg >= year_min_ref) & (time_zos_avg < year_max_r
 print(indzosref)
 zos_avg_ref =  zos_avg[:,indzosref].mean(axis=1)
 
-for i in range(28,len(ModelList.Models)):
+for i in range(len(ModelList.Models)):
     print(f'####### Working on model {i}, {Models[i]}  #####')
     #### Read scenario data
     files1 = loc.select_cmip5_files(VAR, EXP, ModelList.Centers[i], 
@@ -238,33 +242,23 @@ for i in range(28,len(ModelList.Models)):
 
 #             area_mean       = wgt_areaave_Wrap(DTrendVAR1_reg, cLatOut, 1.0, 0) TODO
 #             print("Removing area mean of:" + area_mean + " cm")
-#            MAT_CorrectedZOS_reg(y,:,:) = DTrendVAR1_reg - area_mean
+            MAT_CorrectedZOS_reg[y,:,:] = DTrendVAR1_reg #- area_mean
 
     regridder.clean_weight_file()
-    print(DTrendVAR1_reg)
-# Change the name of output dimensions
-# RefVAR1 = RefVAR1.rename({RefVAR1.dims[0]:name_lat,
-#                       RefVAR1.dims[1]:name_lon})
 
-#     MAT_CorrectedZOS_reg!0 = "time"
-#     MAT_CorrectedZOS_reg!1 = "latitude"
-#     MAT_CorrectedZOS_reg!2 = "longitude"
-#     MAT_CorrectedZOS_reg&time = mid
-#     MAT_CorrectedZOS_reg&latitude = rg.latitude
-#     MAT_CorrectedZOS_reg&longitude = rg.longitude
+    ### Export in NetCDF file
+    MAT_CorrectedZOS_reg = xr.DataArray(MAT_CorrectedZOS_reg, 
+                                        coords=[mid, rg.lat, rg.lon], 
+                                        dims=['time', 'lat', 'lon'])
+    MAT_CorrectedZOS_reg = MAT_CorrectedZOS_reg.expand_dims({'model': [Models[i]]},0)
+    
+    MAT_OUT_ds = xr.Dataset({f'CorrectedReggrided_{VAR}_{EXP}': MAT_CorrectedZOS_reg})
 
-#     ;### Export in NetCDF file
-#     Name_NetCDF = DirOut+"/CorrectedZOS_EXP"+EXP+"_"+Models(i)+".nc"
-#     system("/bin/rm -f "+Name_NetCDF)    ; remove any pre-existing file
-#     ncdf = addfile(Name_NetCDF ,"c")     ; open output netCDF file
+    MAT_OUT_ds.attrs['source_file'] = ('This NetCDF file was built from '+ 
+                                       'ComputeOceanDynmicSeaLevel_CMIP5.py')
+    MAT_OUT_ds.attrs['creation_date'] = datetime.now().strftime('%Y-%m-%d %H:%M')
 
-#     fAtt               = True            ; assign file attributes
-#     fAtt@title         = "Storage of zos state" + \
-#                      " with reference the period "+year_min_ref+"-"+year_max_ref+ \
-#                      " corrected for pre-industrial control trend and for global zos change."
-#     fAtt@creation_date = systemfunc ("date")
-#     fileattdef( ncdf, fAtt )            ; copy file attributes
-
-#     ncdf->CorrectedZOS_reg = MAT_CorrectedZOS_reg
-#     ncdf->year_min_ref     = year_min_ref
-#     ncdf->year_max_ref     = year_max_ref
+    NameOutput = f'{Dir_outputs}CMIP5_{VAR}_{EXP}_{Models[i]}_{year_min}_{year_max}.nc'
+    if os.path.isfile(NameOutput):
+        os.remove(NameOutput)
+    MAT_OUT_ds.to_netcdf(NameOutput)
