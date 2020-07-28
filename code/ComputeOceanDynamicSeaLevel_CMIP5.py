@@ -31,7 +31,7 @@ EXP = 'rcp85'
 year_min_ref = 1986  # Included. Beginning of reference period
 year_max_ref = 2006  # Excluded. End of reference period
 year_min = 2006
-year_max = 2101
+year_max = 2008 #2101
 
 Freq     = 'mon'  # Frequency of time output: mon or fx (only to read inputs)
 DataDir  = '/nobackup/users/bars/synda/cmip5/output1/'
@@ -71,7 +71,7 @@ MaskOut = MaskOut.where(MaskOut != 0)
 MaskOut.loc[dict(lat=slice(35,51), lon=slice(45,56))] = np.nan
 # TODO: Should the center of Australia be also masked?
 # New mask that includes the mediterranean
-MaskOut_Med = MaskOut
+MaskOut_Med = MaskOut.copy()
 MaskOut_Med.loc[dict(lat=slice(20.5,41.5), lon=slice(354,360))] = np.nan
 MaskOut_Med.loc[dict(lat=slice(20.5,41.5), lon=slice(0,44))] = np.nan
 MaskOut_Med.loc[dict(lat=slice(41,47.5), lon=slice(2,44))] = np.nan
@@ -151,19 +151,27 @@ for i in range(len(ModelList.Models)):
         name_lat = 'rlat'
         name_lon = 'rlon'        
     
-    if Models[i] in ['IPSL-CM5A-LR','IPSL-CM5A-MR','IPSL-CM5B-LR','NorESM1-M', 
-                     'NorESM1-ME','ACCESS1-0','CCSM4','MPI-ESM-LR','MPI-ESM-MR']:
+#     if Models[i] in ['IPSL-CM5A-LR','IPSL-CM5A-MR','IPSL-CM5B-LR','NorESM1-M', 
+#                      'NorESM1-ME','ACCESS1-0','CCSM4','MPI-ESM-LR','MPI-ESM-MR',
+#                      'CMCC-CM','CMCC-CESM','CMCC-CMS']:
+    if 'i' and 'j' in f1.coords:
         f1 = f1.rename({'j':name_lat, 'i':name_lon})
         f2 = f2.rename({'j':name_lat, 'i':name_lon})
     
     try:
-        regridder = xe.Regridder(f1, ds_out, 'bilinear',periodic=True)
+        reg_method = 'bilinear'
+        regridder = xe.Regridder(f1, ds_out, reg_method, periodic=True)
         print(regridder)
     except:
-        print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
-        print(f'Regridding did not work for {Models[i]}')
-        print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
-        continue
+        try:
+            reg_method = 'nearest_s2d'
+            regridder = xe.Regridder(f1, ds_out, reg_method, periodic=True)
+            print(regridder)
+        except:
+            print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
+            print(f'Regridding did not work for {Models[i]}')
+            print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
+            continue
     
     # TODO: This lon might not be necessary, only used in interpollation
 #     if (Models(i).eq."bcc-csm1-1").or.(Models(i).eq."bcc-csm1-1-m").or. \
@@ -182,7 +190,7 @@ for i in range(len(ModelList.Models)):
     MAT_CorrectedZOS_reg = np.zeros([len(years_s),dimLatOut,dimLonOut])
     
     ##### Loop on the years ######################################
-    for y in [0,1]: #range(len(years_s)):
+    for y in range(len(years_s)):
         print(f'Working on period: {years_s[y]}-{years_e[y]}')
         indzossel   = np.where((time_zos_avg>=years_s[y]) & (time_zos_avg<years_e[y]))[0]
         if indzossel.size == 0:
@@ -251,6 +259,8 @@ for i in range(len(ModelList.Models)):
                                         coords=[mid, rg.lat, rg.lon], 
                                         dims=['time', 'lat', 'lon'])
     MAT_CorrectedZOS_reg = MAT_CorrectedZOS_reg.expand_dims({'model': [Models[i]]},0)
+    MAT_CorrectedZOS_reg.attrs['units'] = 'cm'
+    MAT_CorrectedZOS_reg.attrs['regridding_method'] = f'xESMF package with {reg_method}'
     
     MAT_OUT_ds = xr.Dataset({f'CorrectedReggrided_{VAR}_{EXP}': MAT_CorrectedZOS_reg})
 
