@@ -38,6 +38,7 @@ year_min = 1986  # Included
 year_max = 2100  # Excluded
 
 Dir_CMIP5_TE = '../../CMIP5_ThermalExp/'
+Dir_outputs = '../outputs/'
 
 col_names = ['Centers','Models']
 if year_max == 2300:
@@ -215,11 +216,11 @@ da = xr.DataArray(AVAR1ct, coords=[ EXP, ModelList.Models, time_all],
 MAT_OUT_ds = xr.Dataset({VAR+'_detrended': da})
 
 MAT_OUT_ds.attrs['source_file'] = ('This NetCDF file was built from '+ 
-                                   'ComputeGlobalMeanThermalExpansion.py')
+                                   'ComputeGlobalMeanThermalExpansion_CMIP5.py')
 
 MAT_OUT_ds.attrs['creation_date'] = datetime.now().strftime('%Y-%m-%d %H:%M')
 
-NameOutput = 'CMIP5_SeaLevel_'+EXP[0]+'_'+VAR+'_'+str(year_min)+'-'+str(year_max)+'.nc'
+NameOutput = Dir_outputs+'CMIP5_SeaLevel_'+EXP[0]+'_'+VAR+'_'+str(year_min)+'-'+str(year_max)+'.nc'
 if os.path.isfile(NameOutput):
     os.remove(NameOutput)
 MAT_OUT_ds.to_netcdf(NameOutput) #mode='a' to append or overwrite
