@@ -25,6 +25,7 @@ def read_ModelNames(ds):
         mod_names.append(str(ds.ModelNames[i].values)[2:-1])
     return mod_names
 
+verbose = False
 VAR = 'zos'
 EXP = 'rcp85'
 
@@ -109,73 +110,73 @@ print(indzosref)
 zos_avg_ref =  zos_avg[:,indzosref].mean(axis=1)
 
 for i in range(len(ModelList.Models)):
-    print(f'####### Working on model {i}, {Models[i]}  #####')
-    #### Read scenario data
-    files1 = loc.select_cmip5_files(VAR, EXP, ModelList.Centers[i], 
+    print(f'####### Working on model {i}, {Models[i]}  ######################')
+    files_hist = loc.select_cmip5_files(VAR, 'historical', ModelList.Centers[i], 
                                 ModelList.Models[i])
-    print('#### Using following files: ####')
-    print(files1)
-    try:
-        f1 = xr.open_mfdataset(files1,combine='by_coords')
-    except:
-        try:
-            print('Open by_coords did not work for:'+ ModelList.Centers[i]+
-                  '/'+ModelList.Models[i]+'/'+EXP)
-            print('Using nested option instead')
-            f1 = xr.open_mfdataset(files1,combine='nested', concat_dim='time')
-        except:
-            print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
-            print(f'Could not open data from {Models[i]}')
-            print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
-            continue
-    VAR1 = f1[VAR].squeeze()
+    files_sce = loc.select_cmip5_files(VAR, EXP, ModelList.Centers[i], 
+                                ModelList.Models[i])
+    if verbose:
+        print('#### Using the following historical files: ####')
+        print(files_hist)
+        print('#### Using the following scenario files: ####')
+        print(files_sce)
 
-    print(VAR1)
-    time1  = f1.time
-    dimt1  = len(time1)
     try:
-        timeUT = time1.dt.year
+        hist_ds = xr.open_mfdataset(files_hist,combine='by_coords')
+        sce_ds = xr.open_mfdataset(files_sce,combine='by_coords')
+    except:
+        print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
+        print(f'Could not open data from {Models[i]}')
+        print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
+        continue
+    
+    ds = xr.concat([hist_ds,sce_ds],'time')
+    
+    try:
+        timeUT = ds.time.dt.year
     except:
         # Mix of time format, dt needs to be applied element wise
-        timeUT = np.array([time1[i].dt.year.values.item() for i in range(len(time1))])
+        timeUT = np.array([ds.time[i].dt.year.values.item() for i in range(len(ds.time))])
         timeUT = xr.DataArray(timeUT, coords=[timeUT], dims=['time'])
+        
+#     time1  = f1.time
+#     dimt1  = len(time1)
+#     try:
+#         timeUT = time1.dt.year
+#     except:
+#         # Mix of time format, dt needs to be applied element wise
+#         timeUT = np.array([time1[i].dt.year.values.item() for i in range(len(time1))])
+#         timeUT = xr.DataArray(timeUT, coords=[timeUT], dims=['time'])
 
-    #### Read historical data    
-    files2 = loc.select_cmip5_files(VAR, 'historical', ModelList.Centers[i], 
-                                    ModelList.Models[i])
+#     time2 = f2.time
+#     timeUT2 = time2.dt.year
     
-    print('### Also using these historical files: ###')
-    print(files2)
-    f2 = xr.open_mfdataset(files2,combine='by_coords')
-    time2 = f2.time
-    timeUT2 = time2.dt.year
-    
-    if len(f1.lat.shape) == 1:
+    if len(ds.lat.shape) == 1:
         name_lat = 'lat'
         name_lon = 'lon'
-    elif len(f1.lat.shape) == 2:
+    elif len(ds.lat.shape) == 2:
         name_lat = 'rlat'
         name_lon = 'rlon'        
     
-    if 'i' and 'j' in f1.coords:
-        f1 = f1.rename({'j':name_lat, 'i':name_lon})
-        f2 = f2.rename({'j':name_lat, 'i':name_lon})
+    if 'i' and 'j' in ds.coords:
+        ds = ds.rename({'j':name_lat, 'i':name_lon})
     
     try:
         reg_method = 'bilinear'
-        regridder = xe.Regridder(f1, ds_out, reg_method, periodic=True)
-        print(regridder)
+        regridder = xe.Regridder(ds, ds_out, reg_method, periodic=True)
     except:
         try:
             reg_method = 'nearest_s2d'
-            regridder = xe.Regridder(f1, ds_out, reg_method, periodic=True)
-            print(regridder)
+            regridder = xe.Regridder(ds, ds_out, reg_method, periodic=True)
         except:
             print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
             print(f'Regridding did not work for {Models[i]}')
             print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
             continue
-
+    
+    if verbose:
+        print(regridder)
+        
     RefVAR1 = fref[Models[i]]
     RefVAR1 = RefVAR1.rename({RefVAR1.dims[0]:name_lat,
                               RefVAR1.dims[1]:name_lon})
@@ -199,12 +200,8 @@ for i in range(len(ModelList.Models)):
             else:
                 zos_avg_sel = zos_avg[:,indzossel].mean(axis=1)
 
-            if years_s[y]>=2006:
-                ind_time_sel = np.where((timeUT>=years_s[y]) & (timeUT<=years_e[y]))[0]
-                VAR1 = f1[VAR][ind_time_sel,:,:]
-            else:
-                ind_time_sel = np.where((timeUT2>=years_s[y]) & (timeUT2<=years_e[y]))[0]
-                VAR1 = f2[VAR][ind_time_sel,:,:]
+            ind_time_sel = np.where((timeUT>=years_s[y]) & (timeUT<=years_e[y]))[0]
+            VAR1 = ds[VAR][ind_time_sel,:,:]
 
             if (Models[i] in ['MIROC5', 'GISS-E2-R', 'GISS-E2-R-CC', 'EC-EARTH', 
                               'MRI-CGCM3']): 
@@ -245,7 +242,7 @@ for i in range(len(ModelList.Models)):
             DTrendVAR1_reg  = DTrendVAR1_reg*MaskOut
             
             area_mean       = DTrendVAR1_reg.weighted(weights).mean(('lon', 'lat'))
-            print(f'Removing area mean of:{area_mean.values} cm')
+            print(f'Removing area mean of:{np.round(area_mean.values,2)} cm')
             MAT_CorrectedZOS_reg[y,:,:] = DTrendVAR1_reg - area_mean
 
     regridder.clean_weight_file()
