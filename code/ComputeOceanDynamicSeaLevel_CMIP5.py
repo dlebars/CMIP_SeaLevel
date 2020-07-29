@@ -30,8 +30,8 @@ EXP = 'rcp85'
 
 year_min_ref = 1986  # Included. Beginning of reference period
 year_max_ref = 2006  # Excluded. End of reference period
-year_min = 2006
-year_max = 2008 #2101
+year_min = 2098 #2006
+year_max = 2100 #2101
 
 Freq     = 'mon'  # Frequency of time output: mon or fx (only to read inputs)
 DataDir  = '/nobackup/users/bars/synda/cmip5/output1/'
@@ -62,19 +62,25 @@ rg = rg.rename({'latitude':'lat', 'longitude':'lon'})
 
 dimLonOut   = len(rg.lon)
 dimLatOut   = len(rg.lat)
-cLatOut     = np.cos(np.deg2rad(rg.lat))
+weights = np.cos(np.deg2rad(rg.lat))
+weights.name = 'weights'
+
 #Build a mask for the new grid
 MaskOut = rg.DYN_ANT
 MaskOut = MaskOut.where(MaskOut == 0, 1)
 MaskOut = MaskOut.where(MaskOut != 0)
 # Mask the Caspian sea
 MaskOut.loc[dict(lat=slice(35,51), lon=slice(45,56))] = np.nan
-# TODO: Should the center of Australia be also masked?
-# New mask that includes the mediterranean
+
+# Mask that includes the Mediterranean and Black Sea
 MaskOut_Med = MaskOut.copy()
 MaskOut_Med.loc[dict(lat=slice(20.5,41.5), lon=slice(354,360))] = np.nan
 MaskOut_Med.loc[dict(lat=slice(20.5,41.5), lon=slice(0,44))] = np.nan
 MaskOut_Med.loc[dict(lat=slice(41,47.5), lon=slice(2,44))] = np.nan
+
+# Mask that includes the Black Sea
+MaskOut_BS = MaskOut.copy()
+MaskOut_BS.loc[dict(lat=slice(39,46), lon=slice(26,42))] 
 
 # Make a dataset for easy regridding with xESMF
 ds_out = xr.Dataset({'lat': (['lat'], rg.lat),
@@ -151,9 +157,6 @@ for i in range(len(ModelList.Models)):
         name_lat = 'rlat'
         name_lon = 'rlon'        
     
-#     if Models[i] in ['IPSL-CM5A-LR','IPSL-CM5A-MR','IPSL-CM5B-LR','NorESM1-M', 
-#                      'NorESM1-ME','ACCESS1-0','CCSM4','MPI-ESM-LR','MPI-ESM-MR',
-#                      'CMCC-CM','CMCC-CESM','CMCC-CMS']:
     if 'i' and 'j' in f1.coords:
         f1 = f1.rename({'j':name_lat, 'i':name_lon})
         f2 = f2.rename({'j':name_lat, 'i':name_lon})
@@ -172,12 +175,6 @@ for i in range(len(ModelList.Models)):
             print(f'Regridding did not work for {Models[i]}')
             print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
             continue
-    
-    # TODO: This lon might not be necessary, only used in interpollation
-#     if (Models(i).eq."bcc-csm1-1").or.(Models(i).eq."bcc-csm1-1-m").or. \
-#      (Models(i).eq."GFDL-ESM2G").or.(Models(i).eq."GFDL-ESM2M").or. \
-#      (Models(i).eq."GFDL-CM3") then
-#         lon = np.where(lon<0,lon+360,lon)
 
     RefVAR1 = fref[Models[i]]
     RefVAR1 = RefVAR1.rename({RefVAR1.dims[0]:name_lat,
@@ -229,32 +226,31 @@ for i in range(len(ModelList.Models)):
             TrendVAR1 = TrendVAR1.rename({TrendVAR1.dims[0]:name_lat, 
                                           TrendVAR1.dims[1]:name_lon})
             DTrendVAR1 = AnomVAR1 - TrendVAR1 - ZOS_AVG_CORR           
-            print(DTrendVAR1)
+
             # Regrid to the reference 1*1 degree grid            
             DTrendVAR1_reg = regridder(DTrendVAR1.isel(time=0)) 
-            #!!! lat/lon should be right most dimensions
-
-            # Mask other problematic regions here
-#           DTrendVAR1_reg@_FillValue = 1e+20
-#           if (Models(i).eq."MIROC5").or.(Models(i).eq."GFDL-ESM2M").or. \
-#              (Models(i).eq."GISS-E2-R").or.(Models(i).eq."GISS-E2-R-CC") then
-#             DTrendVAR1_reg  = DTrendVAR1_reg*MaskOut_Med
-#             else
-#               DTrendVAR1_reg  = DTrendVAR1_reg*MaskOut
-#           end if
             
-            # Fill the NaN values TODO              
-            # NCL command: poisson_grid_fill(DTrendVAR1_reg,True,1,100,1,0.5,0)
+            # Mask other problematic regions here
+            if Models[i] in ['MIROC5', 'GFDL-ESM2M', 'GFDL-CM3','GISS-E2-R', 
+                             'GISS-E2-R-CC']:
+                DTrendVAR1_reg  = DTrendVAR1_reg*MaskOut_Med
+            elif Models[i] in ['NorESM1-M', 'NorESM1-ME']:
+                DTrendVAR1_reg  = DTrendVAR1_reg*MaskOut_BS
+            else:
+                DTrendVAR1_reg  = DTrendVAR1_reg*MaskOut           
+
+            # Fill the NaN values
+            DTrendVAR1_reg = DTrendVAR1_reg.interpolate_na('lon')
+            
             DTrendVAR1_reg  = DTrendVAR1_reg*MaskOut
             
-
-#             area_mean       = wgt_areaave_Wrap(DTrendVAR1_reg, cLatOut, 1.0, 0) TODO
-#             print("Removing area mean of:" + area_mean + " cm")
-            MAT_CorrectedZOS_reg[y,:,:] = DTrendVAR1_reg #- area_mean
+            area_mean       = DTrendVAR1_reg.weighted(weights).mean(('lon', 'lat'))
+            print(f'Removing area mean of:{area_mean.values} cm')
+            MAT_CorrectedZOS_reg[y,:,:] = DTrendVAR1_reg - area_mean
 
     regridder.clean_weight_file()
 
-    ### Export in NetCDF file
+    ### Export to a NetCDF file
     MAT_CorrectedZOS_reg = xr.DataArray(MAT_CorrectedZOS_reg, 
                                         coords=[mid, rg.lat, rg.lon], 
                                         dims=['time', 'lat', 'lon'])
@@ -262,11 +258,12 @@ for i in range(len(ModelList.Models)):
     MAT_CorrectedZOS_reg.attrs['units'] = 'cm'
     MAT_CorrectedZOS_reg.attrs['regridding_method'] = f'xESMF package with {reg_method}'
     
-    MAT_OUT_ds = xr.Dataset({f'CorrectedReggrided_{VAR}_{EXP}': MAT_CorrectedZOS_reg})
+    MAT_OUT_ds = xr.Dataset({f'CorrectedReggrided_{VAR}': MAT_CorrectedZOS_reg})
 
     MAT_OUT_ds.attrs['source_file'] = ('This NetCDF file was built from '+ 
                                        'ComputeOceanDynmicSeaLevel_CMIP5.py')
     MAT_OUT_ds.attrs['creation_date'] = datetime.now().strftime('%Y-%m-%d %H:%M')
+    MAT_OUT_ds.attrs['emission_scenario'] = EXP
 
     NameOutput = f'{Dir_outputs}CMIP5_{VAR}_{EXP}_{Models[i]}_{year_min}_{year_max}.nc'
     if os.path.isfile(NameOutput):
