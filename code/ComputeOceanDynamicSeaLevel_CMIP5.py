@@ -90,9 +90,6 @@ ds_out = xr.Dataset({'lat': (['lat'], rg.lat),
 print("Models used:")
 print(Models)
 
-#TODO later
-fref   = xr.open_dataset(f'{Dir_CMIP5_TE}ReferenceZOS_ForEXP{EXP}_'
-                         f'{year_min_ref}_{year_max_ref}.nc')
 ftrend = xr.open_dataset(f'{Dir_CMIP5_TE}TrendZOS_ForEXP{EXP}.nc')
 
 #Read the average zos fields to discount from the model sea level
@@ -132,42 +129,38 @@ for i in range(len(ModelList.Models)):
     
     ds = xr.concat([hist_ds,sce_ds],'time')
     
+    # Convert dataset from month to year
     try:
-        timeUT = ds.time.dt.year
+        ds.coords['year'] = ds.time.dt.year
     except:
-        # Mix of time format, dt needs to be applied element wise
-        timeUT = np.array([ds.time[i].dt.year.values.item() for i in range(len(ds.time))])
-        timeUT = xr.DataArray(timeUT, coords=[timeUT], dims=['time'])
-        
-#     time1  = f1.time
-#     dimt1  = len(time1)
+        years = np.array([ds.time[i].dt.year.values.item() for i in range(len(ds.time))])
+        ds.coords['year'] = xr.DataArray(years, dims=['time'])
+    y_ds   = ds.groupby('year').mean(dim='time')
+    
 #     try:
-#         timeUT = time1.dt.year
+#         timeUT = ds.time.dt.year
 #     except:
 #         # Mix of time format, dt needs to be applied element wise
-#         timeUT = np.array([time1[i].dt.year.values.item() for i in range(len(time1))])
+#         timeUT = np.array([ds.time[i].dt.year.values.item() for i in range(len(ds.time))])
 #         timeUT = xr.DataArray(timeUT, coords=[timeUT], dims=['time'])
-
-#     time2 = f2.time
-#     timeUT2 = time2.dt.year
     
-    if len(ds.lat.shape) == 1:
+    if len(y_ds.lat.shape) == 1:
         name_lat = 'lat'
         name_lon = 'lon'
-    elif len(ds.lat.shape) == 2:
+    elif len(y_ds.lat.shape) == 2:
         name_lat = 'rlat'
         name_lon = 'rlon'        
     
-    if 'i' and 'j' in ds.coords:
-        ds = ds.rename({'j':name_lat, 'i':name_lon})
+    if 'i' and 'j' in y_ds.coords:
+        y_ds = y_ds.rename({'j':name_lat, 'i':name_lon})
     
     try:
         reg_method = 'bilinear'
-        regridder = xe.Regridder(ds, ds_out, reg_method, periodic=True)
+        regridder = xe.Regridder(y_ds, ds_out, reg_method, periodic=True)
     except:
         try:
             reg_method = 'nearest_s2d'
-            regridder = xe.Regridder(ds, ds_out, reg_method, periodic=True)
+            regridder = xe.Regridder(y_ds, ds_out, reg_method, periodic=True)
         except:
             print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
             print(f'Regridding did not work for {Models[i]}')
@@ -176,10 +169,9 @@ for i in range(len(ModelList.Models)):
     
     if verbose:
         print(regridder)
-        
-    RefVAR1 = fref[Models[i]]
-    RefVAR1 = RefVAR1.rename({RefVAR1.dims[0]:name_lat,
-                              RefVAR1.dims[1]:name_lon})
+    
+    RefVAR1 = y_ds[VAR].sel(year=slice(year_min_ref,year_max_ref)).mean(dim='year')
+
     # Use the reference field to mask the small seas that are not connected to the
     # ocean and areas where sea ice is included on the ocean load
     RefVAR1_corr = RefVAR1 - RefVAR1.mean()
@@ -188,11 +180,11 @@ for i in range(len(ModelList.Models)):
     MAT_CorrectedZOS_reg = np.zeros([len(years_s),dimLatOut,dimLonOut])
     
     ##### Loop on the years ######################################
-    for y in range(len(years_s)):
-        print(f'Working on period: {years_s[y]}-{years_e[y]}')
-        indzossel   = np.where((time_zos_avg>=years_s[y]) & (time_zos_avg<years_e[y]))[0]
+    for y, year in enumerate(years_s):
+        print(f'Working on year: {year}')
+        indzossel   = np.where((time_zos_avg>=year) & (time_zos_avg<year+1))[0]
         if indzossel.size == 0:
-            print(f'No data during the period: {years_s[y]}-{years_e[y]}')
+            print(f'No data for year: {year}')
             MAT_CorrectedZOS_reg[y,:,:] = np.nan
         else:
             if len(indzossel) == 1:
@@ -200,16 +192,14 @@ for i in range(len(ModelList.Models)):
             else:
                 zos_avg_sel = zos_avg[:,indzossel].mean(axis=1)
 
-            ind_time_sel = np.where((timeUT>=years_s[y]) & (timeUT<=years_e[y]))[0]
-            VAR1 = ds[VAR][ind_time_sel,:,:]
+            VAR1 = y_ds[VAR].sel(year=year)
 
             if (Models[i] in ['MIROC5', 'GISS-E2-R', 'GISS-E2-R-CC', 'EC-EARTH', 
                               'MRI-CGCM3']): 
                 VAR1 = np.where(VAR1==0,np.nan,VAR1)
 
-            VAR1avg = VAR1.mean(axis=0) # Compute time average
             ind_zos_avg = zos_avg_ModelNames.index(Models[i])
-            AnomVAR1 = (VAR1avg - RefVAR1)*100 # Convert m to cm
+            AnomVAR1 = (VAR1 - RefVAR1)*100 # Convert m to cm
             AnomVAR1 = AnomVAR1*MaskRefVAR1
 
             ZOS_AVG_CORR = (zos_avg_sel[ind_zos_avg] - 
@@ -262,7 +252,7 @@ for i in range(len(ModelList.Models)):
     MAT_OUT_ds.attrs['creation_date'] = datetime.now().strftime('%Y-%m-%d %H:%M')
     MAT_OUT_ds.attrs['emission_scenario'] = EXP
 
-    NameOutput = f'{Dir_outputs}CMIP5_{VAR}_{EXP}_{Models[i]}_{year_min}_{year_max}.nc'
+    NameOutput = f'{Dir_outputs}TEST_CMIP5_{VAR}_{EXP}_{Models[i]}_{year_min}_{year_max}.nc'
     if os.path.isfile(NameOutput):
         os.remove(NameOutput)
     MAT_OUT_ds.to_netcdf(NameOutput)
