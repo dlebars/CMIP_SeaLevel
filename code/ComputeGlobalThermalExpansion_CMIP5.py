@@ -103,14 +103,7 @@ for j in range(2):
             timeUT = xr.concat([timeUT12[ind12],timeUT11], dim='time')
             VAR1 = xr.concat([VAR12[ind12],VAR1], dim='time')
 
-
-        # Convert from month to year
-        try:
-            VAR1.coords['year'] = VAR1.time.dt.year
-        except:
-            years = np.array([VAR1.time[i].dt.year.values.item() for i in range(len(VAR1))])
-            VAR1.coords['year'] = xr.DataArray(years, dims=['time'])
-        VAR1a   = VAR1.groupby('year').mean(dim='time')
+        VAR1a = loc.yearly_mean(VAR1)
         timeUTa = VAR1a.year
         if EXP[j] == 'piControl':
             # Assumes piControl simulation starts in 1850

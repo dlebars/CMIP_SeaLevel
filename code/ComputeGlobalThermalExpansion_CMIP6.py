@@ -10,6 +10,7 @@ from scipy import signal
 import os
 from datetime import datetime
 import sys
+import mod_loc as loc
 
 ### Functions definition ######################################################
 
@@ -89,13 +90,8 @@ for j in range(2):
             timeUT = np.array([time1[i].dt.year.values.item() for i in range(len(time1))])
             timeUT = xr.DataArray(timeUT, coords=[timeUT], dims=['time'])
 
-        # Convert from month to year
-        try:
-            VAR1.coords['year'] = VAR1.time.dt.year
-        except:
-            years = np.array([VAR1.time[i].dt.year.values.item() for i in range(len(VAR1))])
-            VAR1.coords['year'] = xr.DataArray(years, dims=['time'])
-        VAR1a   = VAR1.groupby('year').mean(dim='time')
+        VAR1a = loc.yearly_mean(VAR1)
+
         timeUTa = VAR1a.year
         if EXP[j] == 'piControl':
             # Assumes piControl simulation starts in 1850

@@ -17,14 +17,6 @@ import xesmf as xe
 from datetime import datetime
 import os
 
-def read_ModelNames(ds):
-    '''Read model names, this need a little function because characters are not
-    read properly by xarray'''
-    mod_names = []
-    for i in range(len(ds.ModelNames)):
-        mod_names.append(str(ds.ModelNames[i].values)[2:-1])
-    return mod_names
-
 verbose = False
 VAR = 'zos'
 EXP = 'rcp85'
@@ -33,9 +25,6 @@ year_min_ref = 1986  # Included. Beginning of reference period
 year_max_ref = 2006  # Excluded. End of reference period
 year_min = 2098 #2006
 year_max = 2100 #2101
-
-Freq     = 'mon'  # Frequency of time output: mon or fx (only to read inputs)
-DataDir  = '/nobackup/users/bars/synda/cmip5/output1/'
 
 Dir_outputs = '../outputs/'
 Dir_CMIP5_TE = '../../CMIP5_ThermalExp/'
@@ -47,14 +36,10 @@ ModelList = pd.read_csv(Dir_CMIP5_TE+'CMIP5modelSelection_'+EXP+'_'+VAR+'.txt',
 Models = ModelList.Models
 
 ###### Start and end of each period 
-# Erwin's project:
 years_s = np.arange(year_min,year_max)
-years_e = years_s+1
+
 # Star's project, historical period
 #years_s = ispan(1900,2005,1)
-#years_e = ispan(1900+1,2005+1,1)
-
-mid = (years_e + years_s)/2
 
 #Read the regular 1*1 grid to use for regridded outputs
 DIRgrid = '/nobackup/users/bars/SeaLevelFromHylke/CMIP5_OCEAN/Fingerprints/' # TODO: Add this standard grid somewhere to the project
@@ -114,14 +99,7 @@ for i in range(len(ModelList.Models)):
         continue
     
     ds = xr.concat([hist_ds,sce_ds],'time')
-    
-    # Convert dataset from month to year
-    try:
-        ds.coords['year'] = ds.time.dt.year
-    except:
-        years = np.array([ds.time[i].dt.year.values.item() for i in range(len(ds.time))])
-        ds.coords['year'] = xr.DataArray(years, dims=['time'])
-    y_ds   = ds.groupby('year').mean(dim='time')
+    y_ds = loc.yearly_mean(ds)
     
     if len(y_ds.lat.shape) == 1:
         name_lat = 'lat'
@@ -181,7 +159,6 @@ for i in range(len(ModelList.Models)):
         DTrendVAR1 = AnomVAR1 - TrendVAR1
 
         # Regrid to the reference 1*1 degree grid            
-#        DTrendVAR1_reg = regridder(DTrendVAR1.isel(year=0)) 
         DTrendVAR1_reg = regridder(DTrendVAR1)
     
         # Mask other problematic regions here
@@ -206,7 +183,7 @@ for i in range(len(ModelList.Models)):
 
     ### Export to a NetCDF file
     MAT_CorrectedZOS_reg = xr.DataArray(MAT_CorrectedZOS_reg, 
-                                        coords=[mid, rg.lat, rg.lon], 
+                                        coords=[years_s+0.5, rg.lat, rg.lon], 
                                         dims=['time', 'lat', 'lon'])
     MAT_CorrectedZOS_reg = MAT_CorrectedZOS_reg.expand_dims({'model': [Models[i]]},0)
     MAT_CorrectedZOS_reg.attrs['units'] = 'cm'
