@@ -92,7 +92,7 @@ print(Models)
 
 ftrend = xr.open_dataset(f'{Dir_CMIP5_TE}TrendZOS_ForEXP{EXP}.nc')
 
-#Read the average zos fields to discount from the model sea level
+# Read the average zos fields to discount from the model sea level
 # ;fzos_avg = addfile("CMIP5_SeaLevel_"+EXP+"_zos_avg_1950-2100.nc","r") ;For Sanne's project
 fzos_avg = xr.open_dataset(f'{Dir_CMIP5_TE}CMIP5_SeaLevel_{EXP}_zos_avg_{year_min_ref}-2100.nc')
 # ;fzos_avg = addfile("CMIP5_SeaLevel_"+EXP+"_zos_avg_1900-2006.nc","r") ;For Star's historical files
@@ -137,13 +137,6 @@ for i in range(len(ModelList.Models)):
         ds.coords['year'] = xr.DataArray(years, dims=['time'])
     y_ds   = ds.groupby('year').mean(dim='time')
     
-#     try:
-#         timeUT = ds.time.dt.year
-#     except:
-#         # Mix of time format, dt needs to be applied element wise
-#         timeUT = np.array([ds.time[i].dt.year.values.item() for i in range(len(ds.time))])
-#         timeUT = xr.DataArray(timeUT, coords=[timeUT], dims=['time'])
-    
     if len(y_ds.lat.shape) == 1:
         name_lat = 'lat'
         name_lon = 'lon'
@@ -174,18 +167,18 @@ for i in range(len(ModelList.Models)):
 
     # Use the reference field to mask the small seas that are not connected to the
     # ocean and areas where sea ice is included on the ocean load
-    RefVAR1_corr = RefVAR1 - RefVAR1.mean()
+    RefVAR1_corr = RefVAR1 - RefVAR1.mean() #TODO weigthed mean
     MaskRefVAR1  = np.where((RefVAR1_corr>=2) | (RefVAR1_corr<=-2),np.nan,1)
 
     MAT_CorrectedZOS_reg = np.zeros([len(years_s),dimLatOut,dimLonOut])
     
     ##### Loop on the years ######################################
-    for y, year in enumerate(years_s):
+    for idx, year in enumerate(years_s):
         print(f'Working on year: {year}')
         indzossel   = np.where((time_zos_avg>=year) & (time_zos_avg<year+1))[0]
         if indzossel.size == 0:
             print(f'No data for year: {year}')
-            MAT_CorrectedZOS_reg[y,:,:] = np.nan
+            MAT_CorrectedZOS_reg[idx,:,:] = np.nan
         else:
             if len(indzossel) == 1:
                 zos_avg_sel = zos_avg[:,indzossel]
@@ -207,7 +200,7 @@ for i in range(len(ModelList.Models)):
 
             # Effective number of years to detrend: year of interest 
             # minus mean of reference period
-            nbyears = mid[y] - (year_max_ref+year_min_ref)/2
+            nbyears = year+0.5 - (year_max_ref+year_min_ref)/2
 
             TrendVAR1 = ftrend[Models[i]]*nbyears*100
             TrendVAR1 = TrendVAR1.rename({TrendVAR1.dims[0]:name_lat, 
@@ -215,7 +208,7 @@ for i in range(len(ModelList.Models)):
             DTrendVAR1 = AnomVAR1 - TrendVAR1 - ZOS_AVG_CORR           
 
             # Regrid to the reference 1*1 degree grid            
-            DTrendVAR1_reg = regridder(DTrendVAR1.isel(time=0)) 
+            DTrendVAR1_reg = regridder(DTrendVAR1.isel(year=0)) 
             
             # Mask other problematic regions here
             if Models[i] in ['MIROC5', 'GFDL-ESM2M', 'GFDL-CM3','GISS-E2-R', 
@@ -233,7 +226,7 @@ for i in range(len(ModelList.Models)):
             
             area_mean       = DTrendVAR1_reg.weighted(weights).mean(('lon', 'lat'))
             print(f'Removing area mean of:{np.round(area_mean.values,2)} cm')
-            MAT_CorrectedZOS_reg[y,:,:] = DTrendVAR1_reg - area_mean
+            MAT_CorrectedZOS_reg[idx,:,:] = DTrendVAR1_reg - area_mean
 
     regridder.clean_weight_file()
 
