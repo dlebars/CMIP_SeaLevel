@@ -92,20 +92,6 @@ print(Models)
 
 ftrend = xr.open_dataset(f'{Dir_CMIP5_TE}TrendZOS_ForEXP{EXP}.nc')
 
-# Read the average zos fields to discount from the model sea level
-# ;fzos_avg = addfile("CMIP5_SeaLevel_"+EXP+"_zos_avg_1950-2100.nc","r") ;For Sanne's project
-fzos_avg = xr.open_dataset(f'{Dir_CMIP5_TE}CMIP5_SeaLevel_{EXP}_zos_avg_{year_min_ref}-2100.nc')
-# ;fzos_avg = addfile("CMIP5_SeaLevel_"+EXP+"_zos_avg_1900-2006.nc","r") ;For Star's historical files
-
-zos_avg_ModelNames = read_ModelNames(fzos_avg)
-zos_avg  = fzos_avg.AverageSeaLevel
-time_zos_avg = fzos_avg.time
-print('Check the time vector:')
-print(time_zos_avg)
-indzosref = np.where((time_zos_avg >= year_min_ref) & (time_zos_avg < year_max_ref))[0]
-print(indzosref)
-zos_avg_ref =  zos_avg[:,indzosref].mean(axis=1)
-
 for i in range(len(ModelList.Models)):
     print(f'####### Working on model {i}, {Models[i]}  ######################')
     files_hist = loc.select_cmip5_files(VAR, 'historical', ModelList.Centers[i], 
@@ -175,58 +161,46 @@ for i in range(len(ModelList.Models)):
     ##### Loop on the years ######################################
     for idx, year in enumerate(years_s):
         print(f'Working on year: {year}')
-        indzossel   = np.where((time_zos_avg>=year) & (time_zos_avg<year+1))[0]
-        if indzossel.size == 0:
-            print(f'No data for year: {year}')
-            MAT_CorrectedZOS_reg[idx,:,:] = np.nan
+
+        VAR1 = y_ds[VAR].sel(year=year)
+
+        if (Models[i] in ['MIROC5', 'GISS-E2-R', 'GISS-E2-R-CC', 'EC-EARTH', 
+                          'MRI-CGCM3']): 
+            VAR1 = np.where(VAR1==0,np.nan,VAR1)
+
+        AnomVAR1 = (VAR1 - RefVAR1)*100 # Convert m to cm
+        AnomVAR1 = AnomVAR1*MaskRefVAR1
+
+        # Effective number of years to detrend: year of interest 
+        # minus mean of reference period
+        nbyears = year+0.5 - (year_max_ref+year_min_ref)/2
+
+        TrendVAR1 = ftrend[Models[i]]*nbyears*100
+        TrendVAR1 = TrendVAR1.rename({TrendVAR1.dims[0]:name_lat, 
+                                      TrendVAR1.dims[1]:name_lon})
+        DTrendVAR1 = AnomVAR1 - TrendVAR1
+
+        # Regrid to the reference 1*1 degree grid            
+#        DTrendVAR1_reg = regridder(DTrendVAR1.isel(year=0)) 
+        DTrendVAR1_reg = regridder(DTrendVAR1)
+    
+        # Mask other problematic regions here
+        if Models[i] in ['MIROC5', 'GFDL-ESM2M', 'GFDL-CM3','GISS-E2-R', 
+                         'GISS-E2-R-CC']:
+            DTrendVAR1_reg  = DTrendVAR1_reg*MaskOut_Med
+        elif Models[i] in ['NorESM1-M', 'NorESM1-ME']:
+            DTrendVAR1_reg  = DTrendVAR1_reg*MaskOut_BS
         else:
-            if len(indzossel) == 1:
-                zos_avg_sel = zos_avg[:,indzossel]
-            else:
-                zos_avg_sel = zos_avg[:,indzossel].mean(axis=1)
+            DTrendVAR1_reg  = DTrendVAR1_reg*MaskOut           
 
-            VAR1 = y_ds[VAR].sel(year=year)
+        # Fill the NaN values
+        DTrendVAR1_reg = DTrendVAR1_reg.interpolate_na('lon')
 
-            if (Models[i] in ['MIROC5', 'GISS-E2-R', 'GISS-E2-R-CC', 'EC-EARTH', 
-                              'MRI-CGCM3']): 
-                VAR1 = np.where(VAR1==0,np.nan,VAR1)
+        DTrendVAR1_reg  = DTrendVAR1_reg*MaskOut
 
-            ind_zos_avg = zos_avg_ModelNames.index(Models[i])
-            AnomVAR1 = (VAR1 - RefVAR1)*100 # Convert m to cm
-            AnomVAR1 = AnomVAR1*MaskRefVAR1
-
-            ZOS_AVG_CORR = (zos_avg_sel[ind_zos_avg] - 
-                            zos_avg_ref[ind_zos_avg])*100
-
-            # Effective number of years to detrend: year of interest 
-            # minus mean of reference period
-            nbyears = year+0.5 - (year_max_ref+year_min_ref)/2
-
-            TrendVAR1 = ftrend[Models[i]]*nbyears*100
-            TrendVAR1 = TrendVAR1.rename({TrendVAR1.dims[0]:name_lat, 
-                                          TrendVAR1.dims[1]:name_lon})
-            DTrendVAR1 = AnomVAR1 - TrendVAR1 - ZOS_AVG_CORR           
-
-            # Regrid to the reference 1*1 degree grid            
-            DTrendVAR1_reg = regridder(DTrendVAR1.isel(year=0)) 
-            
-            # Mask other problematic regions here
-            if Models[i] in ['MIROC5', 'GFDL-ESM2M', 'GFDL-CM3','GISS-E2-R', 
-                             'GISS-E2-R-CC']:
-                DTrendVAR1_reg  = DTrendVAR1_reg*MaskOut_Med
-            elif Models[i] in ['NorESM1-M', 'NorESM1-ME']:
-                DTrendVAR1_reg  = DTrendVAR1_reg*MaskOut_BS
-            else:
-                DTrendVAR1_reg  = DTrendVAR1_reg*MaskOut           
-
-            # Fill the NaN values
-            DTrendVAR1_reg = DTrendVAR1_reg.interpolate_na('lon')
-            
-            DTrendVAR1_reg  = DTrendVAR1_reg*MaskOut
-            
-            area_mean       = DTrendVAR1_reg.weighted(weights).mean(('lon', 'lat'))
-            print(f'Removing area mean of:{np.round(area_mean.values,2)} cm')
-            MAT_CorrectedZOS_reg[idx,:,:] = DTrendVAR1_reg - area_mean
+        area_mean       = DTrendVAR1_reg.weighted(weights).mean(('lon', 'lat'))
+        print(f'Removing area mean of:{np.round(area_mean.values,2)} cm')
+        MAT_CorrectedZOS_reg[idx,:,:] = DTrendVAR1_reg - area_mean
 
     regridder.clean_weight_file()
 
@@ -245,7 +219,7 @@ for i in range(len(ModelList.Models)):
     MAT_OUT_ds.attrs['creation_date'] = datetime.now().strftime('%Y-%m-%d %H:%M')
     MAT_OUT_ds.attrs['emission_scenario'] = EXP
 
-    NameOutput = f'{Dir_outputs}TEST_CMIP5_{VAR}_{EXP}_{Models[i]}_{year_min}_{year_max}.nc'
+    NameOutput = f'{Dir_outputs}TEST2_CMIP5_{VAR}_{EXP}_{Models[i]}_{year_min}_{year_max}.nc'
     if os.path.isfile(NameOutput):
         os.remove(NameOutput)
     MAT_OUT_ds.to_netcdf(NameOutput)
