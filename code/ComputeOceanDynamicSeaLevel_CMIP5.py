@@ -77,12 +77,12 @@ print(Models)
 
 ftrend = xr.open_dataset(f'{Dir_CMIP5_TE}TrendZOS_ForEXP{EXP}.nc')
 
-for i in range(len(ModelList.Models)):
+for i in range(len(Models)):
     print(f'####### Working on model {i}, {Models[i]}  ######################')
     files_hist = loc.select_cmip5_files(VAR, 'historical', ModelList.Centers[i], 
-                                ModelList.Models[i])
+                                Models[i])
     files_sce = loc.select_cmip5_files(VAR, EXP, ModelList.Centers[i], 
-                                ModelList.Models[i])
+                                Models[i])
     if verbose:
         print('#### Using the following historical files: ####')
         print(files_hist)
@@ -153,7 +153,8 @@ for i in range(len(ModelList.Models)):
         # minus mean of reference period
         nbyears = year+0.5 - (year_max_ref+year_min_ref)/2
 
-        TrendVAR1 = ftrend[Models[i]]*nbyears*100
+        TrendVAR1 = ftrend[Models[i]]*nbyears*100 # Call piCOntrol trend here
+        # trend_zos_pic_cmip5(ModelList.iloc[i], verbose=False)
         TrendVAR1 = TrendVAR1.rename({TrendVAR1.dims[0]:name_lat, 
                                       TrendVAR1.dims[1]:name_lon})
         DTrendVAR1 = AnomVAR1 - TrendVAR1
