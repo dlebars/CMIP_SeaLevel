@@ -134,8 +134,13 @@ for i in range(len(Models)):
     RefVAR1_corr = RefVAR1 - RefVAR1.mean() #TODO weigthed mean
     MaskRefVAR1  = np.where((RefVAR1_corr>=2) | (RefVAR1_corr<=-2),np.nan,1)
 
-    MAT_CorrectedZOS_reg = np.zeros([len(years_s),dimLatOut,dimLonOut])
+    Trend_pic_coeff = loc.trend_zos_pic_cmip5(ModelList.iloc[i], order=1)
+    # Build polynmial from coefficients and convert from m to cm per year
+    Trend_pic = xr.polyval(coord=y_ds.year, coeffs=Trend_pic_coeff)*100
+    Trend_pic = Trend_pic - Trend_pic.sel(year=slice(year_min_ref,year_max_ref)
+                                         ).mean(dim='year')
     
+    MAT_CorrectedZOS_reg = np.zeros([len(years_s),dimLatOut,dimLonOut])
     ##### Loop on the years ######################################
     for idx, year in enumerate(years_s):
         print(f'Working on year: {year}')
@@ -153,10 +158,12 @@ for i in range(len(Models)):
         # minus mean of reference period
         nbyears = year+0.5 - (year_max_ref+year_min_ref)/2
 
-        TrendVAR1 = ftrend[Models[i]]*nbyears*100 # Call piCOntrol trend here
-        # trend_zos_pic_cmip5(ModelList.iloc[i], verbose=False)
+#         TrendVAR1 = ftrend[Models[i]]*nbyears*100 # Call piCOntrol trend here
+        TrendVAR1 = Trend_pic.sel(year=year)
+
         TrendVAR1 = TrendVAR1.rename({TrendVAR1.dims[0]:name_lat, 
                                       TrendVAR1.dims[1]:name_lon})
+
         DTrendVAR1 = AnomVAR1 - TrendVAR1
 
         # Regrid to the reference 1*1 degree grid            

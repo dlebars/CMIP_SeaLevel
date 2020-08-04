@@ -29,13 +29,12 @@ def yearly_mean(ds):
     y_ds   = ds.groupby('year').mean(dim='time')
     return y_ds
     
-
-def trend_zos_pic_cmip5(ModelList, verbose=False):
+def trend_zos_pic_cmip5(ModelList, order, verbose=False):
     '''Compute zos trend over the pre-industrial control model simulations'''
     # - Could it work for zos as well? It would make the ComputeGlobalThermalExpansion 
     #scripts simpler
     # - Possibility to compare linear and 2nd order detrending?
-    # Work also on different experiments? No.
+    # Works also on different experiments? No.
     # CMIP5 and CMIP6?
     
     VAR = "zos" # To remove if the script doesn't work for zostoga
@@ -45,10 +44,7 @@ def trend_zos_pic_cmip5(ModelList, verbose=False):
     year_max = 2100
 
     Models   = ModelList.Models
-
-
-    files = loc.select_cmip5_files(VAR, 'historical', ModelList.Centers, 
-                                   Models)
+    files = select_cmip5_files(VAR, 'piControl', ModelList.Centers, Models)
 
     if verbose:
         print("#### Using following files: ####")
@@ -64,38 +60,9 @@ def trend_zos_pic_cmip5(ModelList, verbose=False):
     y_ds = yearly_mean(ds)
     # Assumes piControl simulation starts in 1850 (some models start from 0)
     # Could be improved by checking the branch year attribute
-    # Some piControl are too short but earlier periods could be used...
     y_ds = y_ds.assign_coords(year=(y_ds.year- y_ds.year[0]+ 1850.5))
 
     VAR1 = y_ds[VAR].sel(year=slice(year_min, year_max))
-    print(VAR1)
+    VAR1_coeff = VAR1.polyfit(dim='year',deg=order)
     
-    VAR1ct = signal.detrend(VAR1, axis=0, type='linear') # This is not great... Use something else
-    Trend = VAR1 - VAR1ct
-        
-    
-  dimVAR1 = dimsizes(VAR1)
-
-  DTrend     = dtrend_msg_n(timeUTsel,VAR1(:,:,:),True,True,0)
-  slope2D    = onedtond(DTrend@slope, (/dimVAR1(1),dimVAR1(2)/) )
-  printVarSummary(slope2D)
-
-  lat    = f1s->lat
-  lon    = f1s->lon
-  printVarSummary(lon)
-  printVarSummary(lat)
-  dimlat = dimsizes(dimsizes(lat))
-  dimlon = dimsizes(dimsizes(lon))
-
-    # Adjust attibutes of the dataset that is returned
-    Name_NetCDF = "TrendZOS_ForEXP"+ForEXP+".nc"
-    system("/bin/rm -f "+Name_NetCDF)    ; remove any pre-existing file
-    ncdf = addfile(Name_NetCDF ,"c")  ; open output netCDF file
-
-    fAtt               = True            ; assign file attributes
-    fAtt@title         = "Storage of linear trend of zos between "+year_min+"-"+year_max+ \
-                         " for PlotThermalExpMaps.ncl script. Units are in cm/year"
-    fAtt@creation_date = systemfunc ("date")
-    fileattdef( ncdf, fAtt )            ; copy file attributes
-    ;### Export in NetCDF file
-    ncdf->$Models(i)$ = slope2D  ; Unit in m/year
+    return VAR1_coeff.polyfit_coefficients
