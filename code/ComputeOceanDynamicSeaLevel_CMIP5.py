@@ -2,8 +2,7 @@
 # ComputeOceanDynmicSeaLevel_CMIP5.py: 
 # - Read zos variable from local CMIP5 files synchronized from ESGF nodes using 
 # synda.
-# - Correct the data using a common reference period and removing the trend 
-# from PIcontrol simulations
+# - Correct the data by removing the trend from piCcontrol simulations
 # - Regrid all fields to a common 1x1 lat/lon grid
 # - Export the result as a NetCDF file
 # Equivalent to the former PrepThermalExpMapsTS.ncl script
@@ -17,7 +16,7 @@ import xesmf as xe
 from datetime import datetime
 import os
 
-verbose = False
+verbose = True
 VAR = 'zos'
 EXP = 'rcp85'
 
@@ -74,8 +73,6 @@ ds_out = xr.Dataset({'lat': (['lat'], rg.lat),
 
 print("Models used:")
 print(Models)
-
-ftrend = xr.open_dataset(f'{Dir_CMIP5_TE}TrendZOS_ForEXP{EXP}.nc')
 
 for i in range(len(Models)):
     print(f'####### Working on model {i}, {Models[i]}  ######################')
@@ -134,11 +131,36 @@ for i in range(len(Models)):
     RefVAR1_corr = RefVAR1 - RefVAR1.mean() #TODO weigthed mean
     MaskRefVAR1  = np.where((RefVAR1_corr>=2) | (RefVAR1_corr<=-2),np.nan,1)
 
-    Trend_pic_coeff = loc.trend_zos_pic_cmip5(ModelList.iloc[i], order=1)
+    if verbose:
+        print('Check info about piControl branching:')
+        try:
+            print(f"parent_experiment_id : {hist_ds.attrs['parent_experiment_id']}")
+        except:
+            print('No parent_experiment_id attribute')
+        try:
+            print(f"parent_experiment_rip : {hist_ds.attrs['parent_experiment_rip']}")
+        except:
+            print('No parent_experiment_rip attribute')
+        try:
+            print(f"branch_time : {hist_ds.attrs['branch_time']}")
+        except:
+            print('No branch_time attribute')
+    try:
+        conv_pic_hist = float(y_ds.year[0]) - float(hist_ds.attrs['branch_time'])
+    except:
+        # Pick a random large value that makes sure branching is not used in
+        # trend_zos_pic_cmip5
+        conv_pic_hist = -9999
+    Trend_pic_coeff = loc.trend_zos_pic_cmip5(ModelList.iloc[i], order=1, 
+                                              year_min=1850, year_max=2100,
+                                              conv_pic_hist=conv_pic_hist)
     # Build polynmial from coefficients and convert from m to cm per year
     Trend_pic = xr.polyval(coord=y_ds.year, coeffs=Trend_pic_coeff)*100
+    # Remove the average over the reference period
     Trend_pic = Trend_pic - Trend_pic.sel(year=slice(year_min_ref,year_max_ref)
                                          ).mean(dim='year')
+    Trend_pic = Trend_pic.rename({Trend_pic.dims[1]:name_lat, 
+                              Trend_pic.dims[2]:name_lon})
     
     MAT_CorrectedZOS_reg = np.zeros([len(years_s),dimLatOut,dimLonOut])
     ##### Loop on the years ######################################
@@ -158,11 +180,7 @@ for i in range(len(Models)):
         # minus mean of reference period
         nbyears = year+0.5 - (year_max_ref+year_min_ref)/2
 
-#         TrendVAR1 = ftrend[Models[i]]*nbyears*100 # Call piCOntrol trend here
         TrendVAR1 = Trend_pic.sel(year=year)
-
-        TrendVAR1 = TrendVAR1.rename({TrendVAR1.dims[0]:name_lat, 
-                                      TrendVAR1.dims[1]:name_lon})
 
         DTrendVAR1 = AnomVAR1 - TrendVAR1
 
@@ -204,7 +222,7 @@ for i in range(len(Models)):
     MAT_OUT_ds.attrs['creation_date'] = datetime.now().strftime('%Y-%m-%d %H:%M')
     MAT_OUT_ds.attrs['emission_scenario'] = EXP
 
-    NameOutput = f'{Dir_outputs}TEST2_CMIP5_{VAR}_{EXP}_{Models[i]}_{year_min}_{year_max}.nc'
+    NameOutput = f'{Dir_outputs}TEST4_CMIP5_{VAR}_{EXP}_{Models[i]}_{year_min}_{year_max}.nc'
     if os.path.isfile(NameOutput):
         os.remove(NameOutput)
     MAT_OUT_ds.to_netcdf(NameOutput)

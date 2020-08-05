@@ -29,7 +29,8 @@ def yearly_mean(ds):
     y_ds   = ds.groupby('year').mean(dim='time')
     return y_ds
     
-def trend_zos_pic_cmip5(ModelList, order, verbose=False):
+def trend_zos_pic_cmip5(ModelList, order, year_min, year_max, conv_pic_hist, 
+                        verbose=False):
     '''Compute zos trend over the pre-industrial control model simulations'''
     # - Could it work for zos as well? It would make the ComputeGlobalThermalExpansion 
     #scripts simpler
@@ -39,17 +40,15 @@ def trend_zos_pic_cmip5(ModelList, order, verbose=False):
     
     VAR = "zos" # To remove if the script doesn't work for zostoga
     EXP = "piControl"
-
-    year_min = 1986
-    year_max = 2100
-
-    Models   = ModelList.Models
+    tot_year = year_max - year_min + 1
+    
+    Models = ModelList.Models
     files = select_cmip5_files(VAR, 'piControl', ModelList.Centers, Models)
 
     if verbose:
         print("#### Using following files: ####")
         print(files)
-
+    
     try:
         ds = xr.open_mfdataset(files,combine='by_coords')
     except:
@@ -58,10 +57,19 @@ def trend_zos_pic_cmip5(ModelList, order, verbose=False):
         print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
 
     y_ds = yearly_mean(ds)
-    # Assumes piControl simulation starts in 1850 (some models start from 0)
-    # Could be improved by checking the branch year attribute
-    y_ds = y_ds.assign_coords(year=(y_ds.year- y_ds.year[0]+ 1850.5))
-
+    new_year = np.array(y_ds.year) + conv_pic_hist
+    overlap_years = len(np.where((new_year >= year_min) & (new_year <= year_max))[0])
+    print(f'Number of overlapping years : {overlap_years}')
+    
+    # Require that at least 90% of the years are available
+    if overlap_years >= tot_year*0.9:
+        print('Using branching time')
+        y_ds = y_ds.assign_coords(year=(y_ds.year + conv_pic_hist))
+    else:
+        print('Not using branching time for piControl')
+        # Assumes piControl simulation starts in 1850
+        y_ds = y_ds.assign_coords(year=(y_ds.year- y_ds.year[0]+ 1850.5))
+        
     VAR1 = y_ds[VAR].sel(year=slice(year_min, year_max))
     VAR1_coeff = VAR1.polyfit(dim='year',deg=order)
     
