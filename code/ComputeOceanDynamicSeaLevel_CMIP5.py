@@ -1,7 +1,7 @@
 ###############################################################################
 # ComputeOceanDynmicSeaLevel_CMIP5.py: 
 # - Read zos variable from local CMIP5 files synchronized from ESGF nodes using 
-# synda.
+# synda
 # - Correct the data by removing the trend from piCcontrol simulations
 # - Regrid all fields to a common 1x1 lat/lon grid
 # - Export the result as a NetCDF file
@@ -25,11 +25,11 @@ year_max_ref = 2006  # Excluded. End of reference period
 year_min = 2098 #2006
 year_max = 2100 #2101
 
-Dir_outputs = '../outputs/'
-Dir_CMIP5_TE = '../../CMIP5_ThermalExp/'
+dir_outputs = '../outputs/'
+dir_inputs = '../inputs/'
 
 col_names = ['Centers','Models']
-ModelList = pd.read_csv(Dir_CMIP5_TE+'CMIP5modelSelection_'+EXP+'_'+VAR+'.txt', 
+ModelList = pd.read_csv(dir_inputs+'CMIP5modelSelection_'+EXP+'_'+VAR+'.txt', 
                         delim_whitespace=True, names=['Centers','Models'], 
                         comment='#')
 Models = ModelList.Models
@@ -41,35 +41,16 @@ years_s = np.arange(year_min,year_max)
 #years_s = ispan(1900,2005,1)
 
 #Read the regular 1*1 grid to use for regridded outputs
-DIRgrid = '/nobackup/users/bars/SeaLevelFromHylke/CMIP5_OCEAN/Fingerprints/' # TODO: Add this standard grid somewhere to the project
-rg = xr.open_dataset(DIRgrid+'Relative_icesheets.nc')
-rg = rg.rename({'latitude':'lat', 'longitude':'lon'})
+mask_ds = xr.open_dataset(dir_inputs+'reference_masks.nc')
 
-dimLonOut   = len(rg.lon)
-dimLatOut   = len(rg.lat)
-weights = np.cos(np.deg2rad(rg.lat))
+dimLonOut   = len(mask_ds.lon)
+dimLatOut   = len(mask_ds.lat)
+weights = np.cos(np.deg2rad(mask_ds.lat))
 weights.name = 'weights'
 
-#Build a mask for the new grid
-MaskOut = rg.DYN_ANT
-MaskOut = MaskOut.where(MaskOut == 0, 1)
-MaskOut = MaskOut.where(MaskOut != 0)
-# Mask the Caspian sea
-MaskOut.loc[dict(lat=slice(35,51), lon=slice(45,56))] = np.nan
-
-# Mask that includes the Mediterranean and Black Sea
-MaskOut_Med = MaskOut.copy()
-MaskOut_Med.loc[dict(lat=slice(20.5,41.5), lon=slice(354,360))] = np.nan
-MaskOut_Med.loc[dict(lat=slice(20.5,41.5), lon=slice(0,44))] = np.nan
-MaskOut_Med.loc[dict(lat=slice(41,47.5), lon=slice(2,44))] = np.nan
-
-# Mask that includes the Black Sea
-MaskOut_BS = MaskOut.copy()
-MaskOut_BS.loc[dict(lat=slice(39,46), lon=slice(26,42))] 
-
-# Make a dataset for easy regridding with xESMF
-ds_out = xr.Dataset({'lat': (['lat'], rg.lat),
-                     'lon': (['lon'], rg.lon)})
+# Make a dataset to regrid with xESMF
+ds_out = xr.Dataset({'lat': (['lat'], mask_ds.lat),
+                     'lon': (['lon'], mask_ds.lon)})
 
 print("Models used:")
 print(Models)
@@ -190,16 +171,14 @@ for i in range(len(Models)):
         # Mask other problematic regions here
         if Models[i] in ['MIROC5', 'GFDL-ESM2M', 'GFDL-CM3','GISS-E2-R', 
                          'GISS-E2-R-CC']:
-            DTrendVAR1_reg  = DTrendVAR1_reg*MaskOut_Med
-        elif Models[i] in ['NorESM1-M', 'NorESM1-ME']:
-            DTrendVAR1_reg  = DTrendVAR1_reg*MaskOut_BS
+            DTrendVAR1_reg  = DTrendVAR1_reg*mask_ds.mask_med
         else:
-            DTrendVAR1_reg  = DTrendVAR1_reg*MaskOut           
+            DTrendVAR1_reg  = DTrendVAR1_reg*mask_ds.mask
 
         # Fill the NaN values
         DTrendVAR1_reg = DTrendVAR1_reg.interpolate_na('lon')
 
-        DTrendVAR1_reg  = DTrendVAR1_reg*MaskOut
+        DTrendVAR1_reg  = DTrendVAR1_reg*mask_ds.mask
 
         area_mean       = DTrendVAR1_reg.weighted(weights).mean(('lon', 'lat'))
         print(f'Removing area mean of:{np.round(area_mean.values,2)} cm')
@@ -209,7 +188,7 @@ for i in range(len(Models)):
 
     ### Export to a NetCDF file
     MAT_CorrectedZOS_reg = xr.DataArray(MAT_CorrectedZOS_reg, 
-                                        coords=[years_s+0.5, rg.lat, rg.lon], 
+                                        coords=[years_s+0.5, mask_ds.lat, mask_ds.lon], 
                                         dims=['time', 'lat', 'lon'])
     MAT_CorrectedZOS_reg = MAT_CorrectedZOS_reg.expand_dims({'model': [Models[i]]},0)
     MAT_CorrectedZOS_reg.attrs['units'] = 'cm'
@@ -222,7 +201,7 @@ for i in range(len(Models)):
     MAT_OUT_ds.attrs['creation_date'] = datetime.now().strftime('%Y-%m-%d %H:%M')
     MAT_OUT_ds.attrs['emission_scenario'] = EXP
 
-    NameOutput = f'{Dir_outputs}TEST4_CMIP5_{VAR}_{EXP}_{Models[i]}_{year_min}_{year_max}.nc'
+    NameOutput = f'{dir_outputs}TEST5_CMIP5_{VAR}_{EXP}_{Models[i]}_{year_min}_{year_max}.nc'
     if os.path.isfile(NameOutput):
         os.remove(NameOutput)
     MAT_OUT_ds.to_netcdf(NameOutput)
