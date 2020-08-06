@@ -16,20 +16,29 @@ import xesmf as xe
 from datetime import datetime
 import os
 
-verbose = True
+verbose = False
 VAR = 'zos'
-EXP = 'rcp85'
+EXP = 'historical' # historical, rcp45, rcp85
 
 year_min_ref = 1986  # Included. Beginning of reference period
 year_max_ref = 2006  # Excluded. End of reference period
-year_min = 2098 #2006
-year_max = 2100 #2101
 
+if EXP == 'historical':
+    year_min = 1900 # Could start from 1850
+    year_max = 2006
+else:
+    year_min = 2006
+    year_max = 2101 
+    
 dir_outputs = '../outputs/'
 dir_inputs = '../inputs/'
 
 col_names = ['Centers','Models']
-ModelList = pd.read_csv(dir_inputs+'CMIP5modelSelection_'+EXP+'_'+VAR+'.txt', 
+if EXP == 'historical':
+    EXPm = 'rcp85'
+else:
+    EXPm = EXP
+ModelList = pd.read_csv(dir_inputs+'CMIP5modelSelection_'+EXPm+'_'+VAR+'.txt', 
                         delim_whitespace=True, names=['Centers','Models'], 
                         comment='#')
 Models = ModelList.Models
@@ -58,25 +67,32 @@ print(Models)
 for i in range(len(Models)):
     print(f'####### Working on model {i}, {Models[i]}  ######################')
     files_hist = loc.select_cmip5_files(VAR, 'historical', ModelList.Centers[i], 
-                                Models[i])
-    files_sce = loc.select_cmip5_files(VAR, EXP, ModelList.Centers[i], 
-                                Models[i])
+                                        Models[i])
+    if EXP != 'historical':
+        files_sce = loc.select_cmip5_files(VAR, EXP, ModelList.Centers[i], 
+                                           Models[i])
     if verbose:
         print('#### Using the following historical files: ####')
         print(files_hist)
-        print('#### Using the following scenario files: ####')
-        print(files_sce)
+        if EXP != 'historical':
+            print('#### Using the following scenario files: ####')
+            print(files_sce)
 
     try:
         hist_ds = xr.open_mfdataset(files_hist,combine='by_coords')
-        sce_ds = xr.open_mfdataset(files_sce,combine='by_coords')
+        if EXP != 'historical':
+            sce_ds = xr.open_mfdataset(files_sce,combine='by_coords')
     except:
         print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
         print(f'Could not open data from {Models[i]}')
         print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
         continue
     
-    ds = xr.concat([hist_ds,sce_ds],'time')
+    if EXP != 'historical':
+        ds = xr.concat([hist_ds,sce_ds],'time')
+    else
+        ds = hist_ds
+        
     y_ds = loc.yearly_mean(ds)
     
     if len(y_ds.lat.shape) == 1:
@@ -201,7 +217,7 @@ for i in range(len(Models)):
     MAT_OUT_ds.attrs['creation_date'] = datetime.now().strftime('%Y-%m-%d %H:%M')
     MAT_OUT_ds.attrs['emission_scenario'] = EXP
 
-    NameOutput = f'{dir_outputs}TEST5_CMIP5_{VAR}_{EXP}_{Models[i]}_{year_min}_{year_max}.nc'
+    NameOutput = f'{dir_outputs}CMIP5_{VAR}_{EXP}_{Models[i]}_{year_min}_{year_max}.nc'
     if os.path.isfile(NameOutput):
         os.remove(NameOutput)
     MAT_OUT_ds.to_netcdf(NameOutput)
