@@ -52,8 +52,6 @@ years_s = np.arange(year_min,year_max)
 #Read the regular 1*1 grid to use for regridded outputs
 mask_ds = xr.open_dataset(dir_inputs+'reference_masks.nc')
 
-dimLonOut   = len(mask_ds.lon)
-dimLatOut   = len(mask_ds.lat)
 weights = np.cos(np.deg2rad(mask_ds.lat))
 weights.name = 'weights'
 
@@ -90,7 +88,7 @@ for i in range(len(Models)):
     
     if EXP != 'historical':
         ds = xr.concat([hist_ds,sce_ds],'time')
-    else
+    else:
         ds = hist_ds
         
     y_ds = loc.yearly_mean(ds)
@@ -142,6 +140,7 @@ for i in range(len(Models)):
             print(f"branch_time : {hist_ds.attrs['branch_time']}")
         except:
             print('No branch_time attribute')
+            
     try:
         conv_pic_hist = float(y_ds.year[0]) - float(hist_ds.attrs['branch_time'])
     except:
@@ -151,15 +150,18 @@ for i in range(len(Models)):
     Trend_pic_coeff = loc.trend_zos_pic_cmip5(ModelList.iloc[i], order=1, 
                                               year_min=1850, year_max=2100,
                                               conv_pic_hist=conv_pic_hist)
-    # Build polynmial from coefficients and convert from m to cm per year
+    # Build polynomial from coefficients and convert from m to cm per year
     Trend_pic = xr.polyval(coord=y_ds.year, coeffs=Trend_pic_coeff)*100
+    
     # Remove the average over the reference period
     Trend_pic = Trend_pic - Trend_pic.sel(year=slice(year_min_ref,year_max_ref)
                                          ).mean(dim='year')
+    
     Trend_pic = Trend_pic.rename({Trend_pic.dims[1]:name_lat, 
                               Trend_pic.dims[2]:name_lon})
     
-    MAT_CorrectedZOS_reg = np.zeros([len(years_s),dimLatOut,dimLonOut])
+    MAT_CorrectedZOS_reg = np.zeros([len(years_s), len(mask_ds.lat), len(mask_ds.lon)])
+    
     ##### Loop on the years ######################################
     for idx, year in enumerate(years_s):
         print(f'Working on year: {year}')
