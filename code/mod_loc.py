@@ -74,3 +74,17 @@ def trend_zos_pic_cmip5(ModelList, order, year_min, year_max, conv_pic_hist,
     VAR1_coeff = VAR1.polyfit(dim='year',deg=order)
     
     return VAR1_coeff.polyfit_coefficients
+
+def rotate_longitude(ds):
+    '''Rotate the longitude of an xarray dataset from [0,360] to [-180,180]'''
+    
+    if 'lon' in ds.dims:
+        lon = 'lon'
+    elif 'longitude' in ds.dims:
+        lon = 'longitude'
+    else:
+        print('Longitude not found in dimensions')
+    
+    ds = ds.roll({lon:180}, roll_coords=True)
+    ds[lon] = np.where(ds[lon]>180, ds[lon]-360, ds[lon])
+    return ds
