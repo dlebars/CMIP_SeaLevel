@@ -142,6 +142,7 @@ for i in range(len(Models)):
             print('No branch_time attribute')
             
     try:
+        # Convert the year from piControl to historical run
         conv_pic_hist = float(y_ds.year[0]) - float(hist_ds.attrs['branch_time'])
     except:
         # Pick a random large value that makes sure branching is not used in
@@ -179,9 +180,7 @@ for i in range(len(Models)):
         # minus mean of reference period
         nbyears = year+0.5 - (year_max_ref+year_min_ref)/2
 
-        TrendVAR1 = Trend_pic.sel(year=year)
-
-        DTrendVAR1 = AnomVAR1 - TrendVAR1
+        DTrendVAR1 = AnomVAR1 - Trend_pic.sel(year=year)
 
         # Regrid to the reference 1*1 degree grid            
         DTrendVAR1_reg = regridder(DTrendVAR1)
