@@ -1,5 +1,8 @@
 # mod_loc.py
 from pathlib import Path
+from datetime import datetime
+import os
+
 import numpy as np
 import xarray as xr
 from scipy import signal
@@ -88,3 +91,60 @@ def rotate_longitude(ds):
     ds = ds.roll({lon:180}, roll_coords=True)
     ds[lon] = np.where(ds[lon]>180, ds[lon]-360, ds[lon])
     return ds
+
+def full_data_paths(DataDir, MIP, ModelList, EXP, VAR):
+    '''Provides a list of full paths to CMIP6 data'''
+    DataPath = (DataDir+MIP+'/'+ModelList.Center+'/'+ModelList.Model+
+                '/'+EXP+'/'+ModelList.Ensemble+'/Omon/'+VAR+'/'+
+                ModelList.Grid+'/'+ModelList[EXP+'_Version'])
+    print('Looking for files there:')
+    print(DataPath)
+    p = Path(DataPath)
+    all_files = sorted(p.glob('*'+VAR+'*.nc'))
+    return all_files
+
+def export2netcdf(da, name_output, script_name):
+    '''Convert a DataArray to a Dataset, add some general metadata, make sure 
+    remove any file with the name_output and export as netcdf'''
+    
+    ds = xr.Dataset({da.name: da})
+    ds.attrs['source_file'] = f'This NetCDF file was built from {script_name}'
+    ds.attrs['creation_date'] = datetime.now().strftime('%Y-%m-%d %H:%M')
+
+    if os.path.isfile(name_output):
+        os.remove(name_output)
+    ds.to_netcdf(name_output)
+    
+def print_results(time_all, AVAR1c, AVAR1ct):
+    '''Compute mean and standard deviations of detrended and non-detrended 
+    time series'''
+    AVAR1c_m   = np.mean(AVAR1c,axis=1)
+    AVAR1c_sd  = np.std(AVAR1c,axis=1)
+    AVAR1c_95p = AVAR1c_m + 1.64*AVAR1c_sd
+    AVAR1c_05p = AVAR1c_m - 1.64*AVAR1c_sd
+
+    AVAR1ct_m   = np.mean(AVAR1ct,axis=1)
+    AVAR1ct_sd  = np.std(AVAR1ct,axis=1)
+    AVAR1ct_95p = AVAR1ct_m + 1.64*AVAR1ct_sd
+    AVAR1ct_05p = AVAR1ct_m - 1.64*AVAR1ct_sd
+
+    ### Ouput values
+    indc = np.where(time_all == 2099.5)[0][0]
+    print("Mean and 5-95 percentile range before piC detrend: ")
+    print("Year 2099")
+    print(str(AVAR1c_m[0,indc])+' [ '+str(AVAR1c_05p[0,indc])+' - '
+          +str(AVAR1c_95p[0,indc])+' ]')
+
+    indr = np.where((time_all >= 2081) & (time_all <= 2100))[0]
+    print('Year 2081-2099')
+    print(str(AVAR1c_m[0,indr].mean())+' [ '+str(AVAR1c_05p[0,indr].mean())+' - '
+          +str(AVAR1c_95p[0,indr].mean())+' ]')
+
+    print("Mean and 5-95 percentile range after piC detrend: ")
+    print("Year 2099")
+    print(str(AVAR1ct_m[0,indc])+' [ '+str(AVAR1ct_05p[0,indc])+' - '
+          +str(AVAR1ct_95p[0,indc])+' ]')
+
+    print("Year 2081-2099")
+    print(str(AVAR1ct_m[0,indr].mean())+' [ '+str(AVAR1ct_05p[0,indr].mean())+' - '
+          +str(AVAR1ct_95p[0,indr].mean())+' ]')
