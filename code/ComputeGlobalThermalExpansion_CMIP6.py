@@ -63,12 +63,13 @@ for j in range(2):
             sys.exit('ERROR: No file available at that location')
             
         try:
-            f1 = xr.open_mfdataset(files1,combine='by_coords')
+            f1 = xr.open_mfdataset(files1,combine='by_coords', use_cftime=True)
         except:
             print('Open by_coords did not work for:'+ ModelList.Center[i]+
                   '/'+ModelList.Model[i]+'/'+EXP[j])
             print('Using nested option instead')
-            f1 = xr.open_mfdataset(files1,combine='nested', concat_dim='time')
+            f1 = xr.open_mfdataset(files1,combine='nested', concat_dim='time', 
+                                   use_cftime=True)
         VAR1   = f1[VAR].squeeze()
 
         time1  = f1.time
@@ -90,6 +91,9 @@ for j in range(2):
 
         dimtl = len(timeUTa)
     
+        if ModelList.Model[i] == 'MRI-ESM2-0':
+            VAR1a = loc.remove_discontinuities(VAR1a.values, 0.02)
+    
         print('Time vector timeUTa:')
         print(timeUTa[0])
         print(timeUTa[-1])
@@ -99,8 +103,7 @@ for j in range(2):
         print('These two lengths should be the same:')
         print('len(indt) '+str(len(indt)))
         print('len(indt2) '+str(len(indt2)))
-
-        #AVAR1[j,i,indt2] = VAR1a[indt]
+        
         da[i,:] = VAR1a[indt]
     ds[name_da[j]] = da
 
@@ -112,45 +115,27 @@ if year_max == 2300: #TODO
             print(ModelList.Model[i])
 
 ### Adjust for reference period
-# AVAR1c = np.zeros_like(AVAR1)
-# indref = np.where((time_all > ref_p_min) & (time_all < ref_p_max))[0]
-# for j in range(2):
-#     for i in range(dimMod):
-#         AVAR1c[j,i,:] = AVAR1[j,i,:] - AVAR1[j,i,indref].mean()
-ds = ds - ds.sel(time=slice(ref_p_min,ref_p_max)).mean()
-
-### Correct for the trend in the piControl simulation
-# AVAR1ct = np.zeros_like(AVAR1)
-# AVAR1ct[1,:,:] = signal.detrend(AVAR1[1,:,:], axis=1, type='linear')
-# Trend_piControl = AVAR1[1,:,:] - AVAR1ct[1,:,:]
-# AVAR1ct[0,:,:] = AVAR1[0,:,:] - Trend_piControl
-
-AVAR1ct = np.zeros([2,dimMod, dimt])
-AVAR1ct[1,:,:] = signal.detrend(ds['trend_piControl'], axis=1, type='linear')
-Trend_piControl = ds['trend_piControl'] - AVAR1ct[1,:,:]
-AVAR1ct[0,:,:] = ds[VAR+'_corrected'] - Trend_piControl
-
-# detrend_da = xr.DataArray(np.zeros([dimMod, dimt]), coords=[ModelList.Model, locs], 
-#                           dims=['model', 'time'])
-# detrend_da = 
-
-# Re-correct for the reference period
-for j in range(2):
-    for i in range(dimMod):
-        AVAR1ct[j,i,:] = AVAR1ct[j,i,:] - AVAR1ct[j,i,indref].mean()
-#ds = ds - ds.sel(time=slice(ref_p_min,ref_p_max)).mean()
+ds = ds - ds.sel(time=slice(ref_p_min,ref_p_max)).mean(dim='time')
 
 if verbose:
-    loc.print_results(time_all, AVAR1c, AVAR1ct)
+    print('### Before detrending:')
+    loc.print_results_da(ds[VAR+'_corrected'])
+
+### Correct for the trend in the piControl simulation
+AVAR1ct = np.zeros([2,dimMod, dimt])
+dtrend = signal.detrend(ds['trend_piControl'], axis=1, type='linear')
+ds['trend_piControl'] = ds['trend_piControl'] - dtrend
+ds[VAR+'_corrected'] = ds[VAR+'_corrected'] - ds['trend_piControl']
+
+# Re-correct for the reference period
+ds = ds - ds.sel(time=slice(ref_p_min,ref_p_max)).mean(dim='time')
+
+if verbose:
+    print('### After detrending:')    
+    loc.print_results_da(ds[VAR+'_corrected'])
+
 
 print("### Export data to a NetCDF file ######################################")
-
 script_name = os.path.basename(__file__)
-
-# Build a Dataset from the numpy array
-da = xr.DataArray(AVAR1ct, coords=[ EXP, ModelList.Model, time_all], 
-                  dims=['experiment', 'model', 'time'], name=VAR+'_detrended')
-
 name_output = f'{dir_outputs}CMIP6_SeaLevel_{EXP[0]}_{VAR}_{year_min}_{year_max}.nc'
-
-loc.export2netcdf(da, name_output, script_name)
+loc.export2netcdf(ds, name_output, script_name)
