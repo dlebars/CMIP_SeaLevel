@@ -11,23 +11,6 @@ import os
 from datetime import datetime
 import mod_loc as loc
 
-### Functions definition ######################################################
-def remove_discontinuities(da, gap):
-    '''Remove discontinuities in a time series, numpy or data array.
-    da: The input data, gap: the maximum gap allowed in the data above which 
-    the discontinuity is removed'''
-    da_out = da.copy()
-    diff = np.array(da[1:]) - np.array(da[:-1])
-    print(diff)
-    indpb = np.where(np.abs(diff) > gap)[0]
-    print("### Indices at which there are discontinuities: ####")
-    print(indpb)
-    for k in indpb:
-        da_out[k+1:] = da[k+1:] - da[k+1] + da[k]
-    return da_out
-
-###############################################################################
-
 VAR = 'zostoga' # zostoga, zossga, zosga
 EXP = ['rcp85','piControl']
 
@@ -115,7 +98,7 @@ for j in range(2):
              ModelList.Models[i] == 'bcc-csm1-1-m' or
              ModelList.Models[i] == 'GISS-E2-R-CC' and 
             (VAR in ['zossga', 'zostoga']) and EXP[j] != 'piControl'):
-            VAR1a = remove_discontinuities(VAR1a.values, 0.02)
+            VAR1a = loc.remove_discontinuities(VAR1a.values, 0.02)
     
         print('Time vector timeUTa:')
         print(timeUTa[0])
