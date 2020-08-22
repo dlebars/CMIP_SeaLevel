@@ -94,6 +94,7 @@ def rotate_longitude(ds):
 
 def full_data_paths(DataDir, MIP, ModelList, EXP, VAR):
     '''Provides a list of full paths to CMIP6 data'''
+    
     DataPath = (DataDir+MIP+'/'+ModelList.Center+'/'+ModelList.Model+
                 '/'+EXP+'/'+ModelList.Ensemble+'/Omon/'+VAR+'/'+
                 ModelList.Grid+'/'+ModelList[EXP+'_Version'])
@@ -103,11 +104,14 @@ def full_data_paths(DataDir, MIP, ModelList, EXP, VAR):
     all_files = sorted(p.glob('*'+VAR+'*.nc'))
     return all_files
 
-def export2netcdf(da, name_output, script_name):
-    '''Convert a DataArray to a Dataset, add some general metadata, make sure 
-    remove any file with the name_output and export as netcdf'''
+def export2netcdf(ds, name_output, script_name):
+    '''Export a dataset as netcdf. 
+    If the input is a DataArray, convert to Dataset. 
+    Add some general metadata and remove any file with the name_output before
+    exporting'''
     
-    ds = xr.Dataset({da.name: da})
+    if isinstance(ds, xr.DataArray):
+        ds = xr.Dataset({ds.name: ds})
     ds.attrs['source_file'] = f'This NetCDF file was built from {script_name}'
     ds.attrs['creation_date'] = datetime.now().strftime('%Y-%m-%d %H:%M')
 
@@ -115,22 +119,18 @@ def export2netcdf(da, name_output, script_name):
         os.remove(name_output)
     ds.to_netcdf(name_output)
     
-def print_results(time_all, AVAR1c, AVAR1ct):
+def print_results(time_all, AVAR1c):
     '''Compute mean and standard deviations of detrended and non-detrended 
     time series'''
+    
     AVAR1c_m   = np.mean(AVAR1c,axis=1)
     AVAR1c_sd  = np.std(AVAR1c,axis=1)
     AVAR1c_95p = AVAR1c_m + 1.64*AVAR1c_sd
     AVAR1c_05p = AVAR1c_m - 1.64*AVAR1c_sd
 
-    AVAR1ct_m   = np.mean(AVAR1ct,axis=1)
-    AVAR1ct_sd  = np.std(AVAR1ct,axis=1)
-    AVAR1ct_95p = AVAR1ct_m + 1.64*AVAR1ct_sd
-    AVAR1ct_05p = AVAR1ct_m - 1.64*AVAR1ct_sd
-
     ### Ouput values
     indc = np.where(time_all == 2099.5)[0][0]
-    print("Mean and 5-95 percentile range before piC detrend: ")
+    print("Mean and 5-95 percentile range: ")
     print("Year 2099")
     print(str(AVAR1c_m[0,indc])+' [ '+str(AVAR1c_05p[0,indc])+' - '
           +str(AVAR1c_95p[0,indc])+' ]')
@@ -140,11 +140,38 @@ def print_results(time_all, AVAR1c, AVAR1ct):
     print(str(AVAR1c_m[0,indr].mean())+' [ '+str(AVAR1c_05p[0,indr].mean())+' - '
           +str(AVAR1c_95p[0,indr].mean())+' ]')
 
-    print("Mean and 5-95 percentile range after piC detrend: ")
-    print("Year 2099")
-    print(str(AVAR1ct_m[0,indc])+' [ '+str(AVAR1ct_05p[0,indc])+' - '
-          +str(AVAR1ct_95p[0,indc])+' ]')
+def print_results_da(da):
+    '''Compute mean and standard deviations of detrended and non-detrended 
+    time series'''
+    
+    AVAR1c_m   = da.mean(dim='model')
+    AVAR1c_sd  = da.std(dim='model')
+    AVAR1c_95p = AVAR1c_m + 1.64*AVAR1c_sd
+    AVAR1c_05p = AVAR1c_m - 1.64*AVAR1c_sd
 
-    print("Year 2081-2099")
-    print(str(AVAR1ct_m[0,indr].mean())+' [ '+str(AVAR1ct_05p[0,indr].mean())+' - '
-          +str(AVAR1ct_95p[0,indr].mean())+' ]')
+    ### Ouput values
+    print("Mean and 5-95 percentile range: ")
+    print("Year 2099")
+    print(f'{float(AVAR1c_m.sel(time=2099.5))} [ '+
+          f'{float(AVAR1c_05p.sel(time=2099.5))} - '+
+          f'{float(AVAR1c_95p.sel(time=2099.5))} ]')
+
+    print('Year 2081-2099')  
+    print(f'{float(AVAR1c_m.sel(time=slice(2081,2101)).mean())} [ '+
+          f'{float(AVAR1c_05p.sel(time=slice(2081,2101)).mean())} - '+
+          f'{float(AVAR1c_95p.sel(time=slice(2081,2101)).mean())} ]')
+    
+def remove_discontinuities(da, gap):
+    '''Remove discontinuities in a time series, numpy or data array.
+    da: The input data
+    gap: the maximum gap allowed in the data above which the 
+    discontinuity is removed'''
+    
+    da_out = da.copy()
+    diff = np.array(da[1:]) - np.array(da[:-1])
+    indpb = np.where(np.abs(diff) > gap)[0]
+    print("### Removing discontinuities at these indices: ####")
+    print(indpb)
+    for k in indpb:
+        da_out[k+1:] = da[k+1:] - da[k+1] + da[k]
+    return da_out
