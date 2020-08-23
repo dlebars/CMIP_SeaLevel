@@ -23,17 +23,17 @@ year_max = 2100  # Excluded
 Dir_CMIP5_TE = '../../CMIP5_ThermalExp/'
 Dir_outputs = '../outputs/'
 
-col_names = ['Centers','Models']
+col_names = ['Center','Model']
 if year_max == 2300:
     ModelList = pd.read_csv(Dir_CMIP5_TE+'CMIP5modelSelection_'+EXP[0]+'_'+VAR+
                             '_2300.txt', delim_whitespace=True, 
-                            names=['Centers','Models'], comment='#')
+                            names=col_names, comment='#')
 else:
     ModelList = pd.read_csv(Dir_CMIP5_TE+'CMIP5modelSelection_'+EXP[0]+'_'+VAR+'.txt', 
-                            delim_whitespace=True, names=['Centers','Models'], 
+                            delim_whitespace=True, names=col_names, 
                             comment='#')
 
-dimMod = len(ModelList.Models)
+dimMod = len(ModelList.Model)
 dimt = year_max-year_min
 print(dimt)
 time_all = np.arange(year_min, year_max)+0.5
@@ -43,15 +43,15 @@ AVAR1  = np.zeros([2,dimMod,dimt])
 
 for j in range(2):
     for i in range(dimMod):
-        files1 = loc.select_cmip5_files(VAR, EXP[j], ModelList.Centers[i], 
-                                    ModelList.Models[i])
+        files1 = loc.select_cmip5_files(VAR, EXP[j], ModelList.Center[i], 
+                                    ModelList.Model[i])
         print('#### Using the following files: ####')
         [print(str(x)) for x in  files1]
         try:
             f1 = xr.open_mfdataset(files1,combine='by_coords')
         except:
-            print('Open by_coords did not work for:'+ ModelList.Centers[i]+
-                  '/'+ModelList.Models[i]+'/'+EXP[j])
+            print('Open by_coords did not work for:'+ ModelList.Center[i]+
+                  '/'+ModelList.Model[i]+'/'+EXP[j])
             print('Using nested option instead')
             f1 = xr.open_mfdataset(files1,combine='nested', concat_dim='time')
         VAR1 = f1[VAR].squeeze()
@@ -68,8 +68,8 @@ for j in range(2):
 
         if j == 0:
             # Add historical simulation as well
-            files12 = loc.select_cmip5_files(VAR, 'historical', ModelList.Centers[i], 
-                                         ModelList.Models[i])
+            files12 = loc.select_cmip5_files(VAR, 'historical', ModelList.Center[i], 
+                                         ModelList.Model[i])
             print('### Also using these historical files: ###')
             [print(str(x)) for x in  files1]
             f12 = xr.open_mfdataset(files12,combine='by_coords')
@@ -87,16 +87,16 @@ for j in range(2):
             VAR1 = xr.concat([VAR12[ind12],VAR1], dim='time')
 
         VAR1a = loc.yearly_mean(VAR1)
-        timeUTa = VAR1a.year
+        timeUTa = VAR1a.time
         if EXP[j] == 'piControl':
             # Assumes piControl simulation starts in 1850
             timeUTa = timeUTa - timeUTa[0] + 1850.5
 
         dimtl = len(timeUTa)
 
-        if ( ModelList.Models[i] == 'bcc-csm1-1' or 
-             ModelList.Models[i] == 'bcc-csm1-1-m' or
-             ModelList.Models[i] == 'GISS-E2-R-CC' and 
+        if ( ModelList.Model[i] == 'bcc-csm1-1' or 
+             ModelList.Model[i] == 'bcc-csm1-1-m' or
+             ModelList.Model[i] == 'GISS-E2-R-CC' and 
             (VAR in ['zossga', 'zostoga']) and EXP[j] != 'piControl'):
             VAR1a = loc.remove_discontinuities(VAR1a.values, 0.02)
     
@@ -110,7 +110,7 @@ for j in range(2):
         print('len(indt) '+str(len(indt)))
         print('len(indt2) '+str(len(indt2)))
 
-        if ([EXP[j], ModelList.Models[i], VAR] in 
+        if ([EXP[j], ModelList.Model[i], VAR] in 
               [['piControl', 'MIROC-ESM-CHEM', 'zossga'], 
                ['piControl', 'MIROC-ESM-CHEM', 'zostoga'], 
                ['rcp45', 'CMCC-CM', 'zossga'], 
@@ -131,7 +131,7 @@ if year_max == 2300:
     for i in range(0,dimMod-1):
         tot_mis = np.sum(np.isnan(AVAR1[0,i,:]))
         if tot_mis <=50:
-            print(ModelList.Models[i])
+            print(ModelList.Model[i])
 
 ### Adjust for reference period
 AVAR1c = np.zeros_like(AVAR1)
@@ -187,7 +187,7 @@ print(str(AVAR1ct_m[0,indr].mean())+' [ '+str(AVAR1ct_05p[0,indr].mean())+' - '
 print("### Export data to a NetCDF file ######################################")
 
 # Build a DataSet
-da = xr.DataArray(AVAR1ct, coords=[ EXP, ModelList.Models, time_all], 
+da = xr.DataArray(AVAR1ct, coords=[ EXP, ModelList.Model, time_all], 
                   dims=['experiment', 'model', 'time'])
 MAT_OUT_ds = xr.Dataset({VAR+'_detrended': da})
 

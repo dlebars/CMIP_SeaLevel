@@ -19,7 +19,7 @@ EXP = ['ssp585','piControl'] # 'ssp119', 'ssp126', 'ssp245', 'ssp370', 'ssp585'
 MIP = ['ScenarioMIP','CMIP'] # MIP to which the above runs belong
 
 ref_p_min = 1986
-ref_p_max = 2005 #TODO excluded so increase to 2006
+ref_p_max = 2005 #TODO excluded so increase to 2006?
 
 year_min = 1986  # Included
 year_max = 2100  # Included
@@ -35,7 +35,6 @@ time_all = np.arange(year_min, year_max ) + 0.5
 dimt = len(time_all)
 print(dimt)
 
-#AVAR1  = np.zeros([2,dimMod,dimt])
 ds = xr.Dataset()
 name_da = {0: VAR+'_corrected', 1: 'trend_piControl'}
 
@@ -47,12 +46,14 @@ for j in range(2):
             # For this model the scenarios are done at DKRZ while piControl 
             # and historical are done at MPI-M
             ModelList.Center[i] = 'DKRZ'
+            
         files1 = loc.full_data_paths(DataDir, MIP[j], ModelList.iloc[i], EXP[j], VAR)
 
         if j==0:
             # Add historical simulation as well
             if (ModelList.Model[i] == 'MPI-ESM1-2-HR'):
                 ModelList.Center[i] = 'MPI-M'
+                
             files12 = loc.full_data_paths(DataDir, 'CMIP', ModelList.iloc[i], 
                                       'historical', VAR)
             files1 = files12 + files1
@@ -80,26 +81,12 @@ for j in range(2):
         if EXP[j] == 'piControl':
             # Assumes piControl simulation starts in 1850
             # This is not the case for all models so it should be improved!
-            #timeUTa = timeUTa - timeUTa[0] + 1850.5
             VAR1a = VAR1a.assign_coords(time=(VAR1a.time- VAR1a.time[0]+ 1850.5))
-
-        dimtl = len(timeUTa)
     
         if ModelList.Model[i] == 'MRI-ESM2-0':
             VAR1a = loc.remove_discontinuities(VAR1a, 0.02)
             # The function remove_discontinuities returns a numpy array
-            
-        print('Time vector timeUTa:')
-        print(timeUTa[0])
-        print(timeUTa[-1])
-        indt = np.where((timeUTa >= year_min) & (timeUTa < year_max))[0]
-        indt2 = np.where((time_all >= (timeUTa[0].values-0.1)) & 
-                         (time_all <= (timeUTa[-1].values+0.1)))[0]
-        print('These two lengths should be the same:')
-        print('len(indt) '+str(len(indt)))
-        print('len(indt2) '+str(len(indt2)))
         
-#         da[i,:] = VAR1a[indt]
         da[i,:] = VAR1a.sel(time=slice(year_min,year_max))
     ds[name_da[j]] = da
 
@@ -129,7 +116,6 @@ ds = ds - ds.sel(time=slice(ref_p_min,ref_p_max)).mean(dim='time')
 if verbose:
     print('### After detrending:')    
     loc.print_results_da(ds[VAR+'_corrected'])
-
 
 print("### Export data to a NetCDF file ######################################")
 script_name = os.path.basename(__file__)

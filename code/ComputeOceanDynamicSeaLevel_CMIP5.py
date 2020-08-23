@@ -8,13 +8,15 @@
 # Equivalent to the former PrepThermalExpMapsTS.ncl script
 ###############################################################################
 
-import numpy as np
-import xarray as xr
-import mod_loc as loc
-import pandas as pd
-import xesmf as xe
 from datetime import datetime
 import os
+
+import numpy as np
+import xarray as xr
+import pandas as pd
+import xesmf as xe
+
+import mod_loc as loc
 
 verbose = False
 VAR = 'zos'
@@ -33,21 +35,17 @@ else:
 dir_outputs = '../outputs/'
 dir_inputs = '../inputs/'
 
-col_names = ['Centers','Models']
 if EXP == 'historical':
     EXPm = 'rcp85'
 else:
     EXPm = EXP
 ModelList = pd.read_csv(dir_inputs+'CMIP5modelSelection_'+EXPm+'_'+VAR+'.txt', 
-                        delim_whitespace=True, names=['Centers','Models'], 
+                        delim_whitespace=True, names=['Center','Model'], 
                         comment='#')
-Models = ModelList.Models
+Model = ModelList.Model
 
 ###### Start and end of each period 
-years_s = np.arange(year_min,year_max)
-
-# Star's project, historical period
-#years_s = ispan(1900,2005,1)
+years_s = np.arange(year_min,year_max) + 0.5
 
 #Read the regular 1*1 grid to use for regridded outputs
 mask_ds = xr.open_dataset(dir_inputs+'reference_masks.nc')
@@ -59,16 +57,16 @@ weights.name = 'weights'
 ds_out = xr.Dataset({'lat': (['lat'], mask_ds.lat),
                      'lon': (['lon'], mask_ds.lon)})
 
-print("Models used:")
-print(Models)
+print('Model used:')
+print(Model)
 
-for i in range(len(Models)):
-    print(f'####### Working on model {i}, {Models[i]}  ######################')
-    files_hist = loc.select_cmip5_files(VAR, 'historical', ModelList.Centers[i], 
-                                        Models[i])
+for i in range(len(Model)):
+    print(f'####### Working on model {i}, {Model[i]}  ######################')
+    files_hist = loc.select_cmip5_files(VAR, 'historical', ModelList.Center[i], 
+                                        Model[i])
     if EXP != 'historical':
-        files_sce = loc.select_cmip5_files(VAR, EXP, ModelList.Centers[i], 
-                                           Models[i])
+        files_sce = loc.select_cmip5_files(VAR, EXP, ModelList.Center[i], 
+                                           Model[i])
     if verbose:
         print('#### Using the following historical files: ####')
         print(files_hist)
@@ -82,7 +80,7 @@ for i in range(len(Models)):
             sce_ds = xr.open_mfdataset(files_sce,combine='by_coords')
     except:
         print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
-        print(f'Could not open data from {Models[i]}')
+        print(f'Could not open data from {Model[i]}')
         print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
         continue
     
@@ -112,14 +110,14 @@ for i in range(len(Models)):
             regridder = xe.Regridder(y_ds, ds_out, reg_method, periodic=True)
         except:
             print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
-            print(f'Regridding did not work for {Models[i]}')
+            print(f'Regridding did not work for {Model[i]}')
             print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
             continue
     
     if verbose:
         print(regridder)
     
-    RefVAR1 = y_ds[VAR].sel(year=slice(year_min_ref,year_max_ref)).mean(dim='year')
+    RefVAR1 = y_ds[VAR].sel(time=slice(year_min_ref,year_max_ref)).mean(dim='time')
 
     # Use the reference field to mask the small seas that are not connected to the
     # ocean and areas where sea ice is included on the ocean load
@@ -143,7 +141,7 @@ for i in range(len(Models)):
             
     try:
         # Convert the year from piControl to historical run
-        conv_pic_hist = float(y_ds.year[0]) - float(hist_ds.attrs['branch_time'])
+        conv_pic_hist = float(y_ds.time[0]) - float(hist_ds.attrs['branch_time'])
     except:
         # Pick a random large value that makes sure branching is not used in
         # trend_zos_pic_cmip5
@@ -152,11 +150,11 @@ for i in range(len(Models)):
                                               year_min=1850, year_max=2100,
                                               conv_pic_hist=conv_pic_hist)
     # Build polynomial from coefficients and convert from m to cm per year
-    Trend_pic = xr.polyval(coord=y_ds.year, coeffs=Trend_pic_coeff)*100
+    Trend_pic = xr.polyval(coord=y_ds.time, coeffs=Trend_pic_coeff)*100
     
     # Remove the average over the reference period
-    Trend_pic = Trend_pic - Trend_pic.sel(year=slice(year_min_ref,year_max_ref)
-                                         ).mean(dim='year')
+    Trend_pic = Trend_pic - Trend_pic.sel(time=slice(year_min_ref,year_max_ref)
+                                         ).mean(dim='time')
     
     Trend_pic = Trend_pic.rename({Trend_pic.dims[1]:name_lat, 
                               Trend_pic.dims[2]:name_lon})
@@ -167,9 +165,9 @@ for i in range(len(Models)):
     for idx, year in enumerate(years_s):
         print(f'Working on year: {year}')
 
-        VAR1 = y_ds[VAR].sel(year=year)
+        VAR1 = y_ds[VAR].sel(time=year)
 
-        if (Models[i] in ['MIROC5', 'GISS-E2-R', 'GISS-E2-R-CC', 'EC-EARTH', 
+        if (Model[i] in ['MIROC5', 'GISS-E2-R', 'GISS-E2-R-CC', 'EC-EARTH', 
                           'MRI-CGCM3']): 
             VAR1 = np.where(VAR1==0,np.nan,VAR1)
 
@@ -180,13 +178,13 @@ for i in range(len(Models)):
         # minus mean of reference period
         nbyears = year+0.5 - (year_max_ref+year_min_ref)/2
 
-        DTrendVAR1 = AnomVAR1 - Trend_pic.sel(year=year)
+        DTrendVAR1 = AnomVAR1 - Trend_pic.sel(time=year)
 
         # Regrid to the reference 1*1 degree grid            
         DTrendVAR1_reg = regridder(DTrendVAR1)
     
         # Mask other problematic regions here
-        if Models[i] in ['MIROC5', 'GFDL-ESM2M', 'GFDL-CM3','GISS-E2-R', 
+        if Model[i] in ['MIROC5', 'GFDL-ESM2M', 'GFDL-CM3','GISS-E2-R', 
                          'GISS-E2-R-CC']:
             DTrendVAR1_reg  = DTrendVAR1_reg*mask_ds.mask_med
         else:
@@ -205,9 +203,9 @@ for i in range(len(Models)):
 
     ### Export to a NetCDF file
     MAT_CorrectedZOS_reg = xr.DataArray(MAT_CorrectedZOS_reg, 
-                                        coords=[years_s+0.5, mask_ds.lat, mask_ds.lon], 
+                                        coords=[years_s, mask_ds.lat, mask_ds.lon], 
                                         dims=['time', 'lat', 'lon'])
-    MAT_CorrectedZOS_reg = MAT_CorrectedZOS_reg.expand_dims({'model': [Models[i]]},0)
+    MAT_CorrectedZOS_reg = MAT_CorrectedZOS_reg.expand_dims({'model': [Model[i]]},0)
     MAT_CorrectedZOS_reg.attrs['units'] = 'cm'
     MAT_CorrectedZOS_reg.attrs['regridding_method'] = f'xESMF package with {reg_method}'
     
@@ -218,7 +216,7 @@ for i in range(len(Models)):
     MAT_OUT_ds.attrs['creation_date'] = datetime.now().strftime('%Y-%m-%d %H:%M')
     MAT_OUT_ds.attrs['emission_scenario'] = EXP
 
-    NameOutput = f'{dir_outputs}CMIP5_{VAR}_{EXP}_{Models[i]}_{year_min}_{year_max}.nc'
+    NameOutput = f'{dir_outputs}CMIP5_{VAR}_{EXP}_{Model[i]}_{year_min}_{year_max}.nc'
     if os.path.isfile(NameOutput):
         os.remove(NameOutput)
     MAT_OUT_ds.to_netcdf(NameOutput)

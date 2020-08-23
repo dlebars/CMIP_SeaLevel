@@ -52,8 +52,8 @@ def trend_zos_pic_cmip5(ModelList, order, year_min, year_max, conv_pic_hist,
     EXP = "piControl"
     tot_year = year_max - year_min + 1
     
-    Models = ModelList.Models
-    files = select_cmip5_files(VAR, 'piControl', ModelList.Centers, Models)
+    Model = ModelList.Model
+    files = select_cmip5_files(VAR, 'piControl', ModelList.Center, Model)
 
     if verbose:
         print("#### Using following files: ####")
@@ -63,25 +63,25 @@ def trend_zos_pic_cmip5(ModelList, order, year_min, year_max, conv_pic_hist,
         ds = xr.open_mfdataset(files,combine='by_coords')
     except:
         print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
-        print(f'Could not open data from {Models[i]}')
+        print(f'Could not open data from {Model[i]}')
         print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
 
     y_ds = yearly_mean(ds)
-    new_year = np.array(y_ds.year) + conv_pic_hist
+    new_year = np.array(y_ds.time) + conv_pic_hist
     overlap_years = len(np.where((new_year >= year_min) & (new_year <= year_max))[0])
     print(f'Number of overlapping years : {overlap_years}')
     
     # Require that at least 90% of the years are available
     if overlap_years >= tot_year*0.9:
         print('Using branching time')
-        y_ds = y_ds.assign_coords(year=(y_ds.year + conv_pic_hist))
+        y_ds = y_ds.assign_coords(time=(y_ds.year + conv_pic_hist))
     else:
         print('Not using branching time for piControl')
         # Assumes piControl simulation starts in 1850
-        y_ds = y_ds.assign_coords(year=(y_ds.year- y_ds.year[0]+ 1850.5))
+        y_ds = y_ds.assign_coords(time=(y_ds.time- y_ds.time[0]+ 1850.5))
         
-    VAR1 = y_ds[VAR].sel(year=slice(year_min, year_max))
-    VAR1_coeff = VAR1.polyfit(dim='year',deg=order)
+    VAR1 = y_ds[VAR].sel(time=slice(year_min, year_max))
+    VAR1_coeff = VAR1.polyfit(dim='time',deg=order)
     
     return VAR1_coeff.polyfit_coefficients
 
@@ -167,21 +167,6 @@ def print_results_da(da):
     print(f'{float(AVAR1c_m.sel(time=slice(2081,2101)).mean())} [ '+
           f'{float(AVAR1c_05p.sel(time=slice(2081,2101)).mean())} - '+
           f'{float(AVAR1c_95p.sel(time=slice(2081,2101)).mean())} ]')
-    
-# def remove_discontinuities(da, gap):
-#     '''Remove discontinuities in a time series, numpy or data array.
-#     da: The input data
-#     gap: the maximum gap allowed in the data above which the 
-#     discontinuity is removed'''
-    
-#     da_out = da.copy()
-#     diff = np.array(da[1:]) - np.array(da[:-1])
-#     indpb = np.where(np.abs(diff) > gap)[0]
-#     print("### Removing discontinuities at these indices: ####")
-#     print(indpb)
-#     for k in indpb:
-#         da_out[k+1:] = da[k+1:] - da[k+1] + da[k]
-#     return da_out
 
 def remove_discontinuities(da, gap):
     '''Remove discontinuities in a time series, numpy or data array.
