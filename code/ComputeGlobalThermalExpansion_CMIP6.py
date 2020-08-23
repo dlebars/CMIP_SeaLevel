@@ -3,12 +3,14 @@
 ###############################################################################
 
 from pathlib import Path
+import os
+import sys
+
 import pandas as pd
 import numpy as np
 import xarray as xr
 from scipy import signal
-import os
-import sys
+
 import mod_loc as loc
 
 verbose = True
@@ -20,7 +22,7 @@ ref_p_min = 1986
 ref_p_max = 2005 #TODO excluded so increase to 2006
 
 year_min = 1986  # Included
-year_max = 2100  # Excluded (2101)
+year_max = 2100  # Included
 
 DataDir  = '/nobackup_1/users/bars/synda_cmip6/CMIP6/'
 Dir_SelectPath = '../SelectPaths_CMIP6/'
@@ -29,7 +31,7 @@ ModelList = pd.read_csv(Dir_SelectPath+'AvailableExperiments_'+str(VAR)+
                         '_historical_piControl_'+str(EXP[0])+'.csv')
 
 dimMod = len(ModelList.Model)
-time_all = np.arange(year_min, year_max)+0.5
+time_all = np.arange(year_min, year_max ) + 0.5
 dimt = len(time_all)
 print(dimt)
 
@@ -70,30 +72,23 @@ for j in range(2):
             print('Using nested option instead')
             f1 = xr.open_mfdataset(files1,combine='nested', concat_dim='time', 
                                    use_cftime=True)
+            
         VAR1   = f1[VAR].squeeze()
-
-        time1  = f1.time
-        dimt1  = len(time1)
-        try:
-            timeUT = time1.dt.year
-        except:
-            # Mix of time format, dt needs to be applied element wise
-            timeUT = np.array([time1[i].dt.year.values.item() for i in range(len(time1))])
-            timeUT = xr.DataArray(timeUT, coords=[timeUT], dims=['time'])
-
         VAR1a = loc.yearly_mean(VAR1)
 
-        timeUTa = VAR1a.year
+        timeUTa = VAR1a.time
         if EXP[j] == 'piControl':
             # Assumes piControl simulation starts in 1850
             # This is not the case for all models so it should be improved!
-            timeUTa = timeUTa - timeUTa[0] + 1850.5
+            #timeUTa = timeUTa - timeUTa[0] + 1850.5
+            VAR1a = VAR1a.assign_coords(time=(VAR1a.time- VAR1a.time[0]+ 1850.5))
 
         dimtl = len(timeUTa)
     
         if ModelList.Model[i] == 'MRI-ESM2-0':
-            VAR1a = loc.remove_discontinuities(VAR1a.values, 0.02)
-    
+            VAR1a = loc.remove_discontinuities(VAR1a, 0.02)
+            # The function remove_discontinuities returns a numpy array
+            
         print('Time vector timeUTa:')
         print(timeUTa[0])
         print(timeUTa[-1])
@@ -104,7 +99,8 @@ for j in range(2):
         print('len(indt) '+str(len(indt)))
         print('len(indt2) '+str(len(indt2)))
         
-        da[i,:] = VAR1a[indt]
+#         da[i,:] = VAR1a[indt]
+        da[i,:] = VAR1a.sel(time=slice(year_min,year_max))
     ds[name_da[j]] = da
 
 if year_max == 2300: #TODO

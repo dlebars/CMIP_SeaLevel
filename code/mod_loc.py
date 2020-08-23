@@ -24,12 +24,19 @@ def select_cmip5_files(VAR, EXP, Center, Model):
 
 def yearly_mean(ds):
     '''Convert the data set or data array to year'''
+    
     try:
         ds.coords['year'] = ds.time.dt.year
     except:
-        years = np.array([ds.time[i].dt.year.values.item() for i in range(len(ds.time))])
+        years = np.array([ds.time[i].dt.year.values.item() 
+                          for i in range(len(ds.time))])
         ds.coords['year'] = xr.DataArray(years, dims=['time'])
-    y_ds   = ds.groupby('year').mean(dim='time')
+        
+    y_ds = ds.groupby('year').mean(dim='time')
+    y_ds = y_ds.rename({'year':'time'})
+    # Center the time axis to the middle of the year
+    y_ds = y_ds.assign_coords(time=(y_ds.time+0.5))
+    
     return y_ds
     
 def trend_zos_pic_cmip5(ModelList, order, year_min, year_max, conv_pic_hist, 
@@ -161,6 +168,21 @@ def print_results_da(da):
           f'{float(AVAR1c_05p.sel(time=slice(2081,2101)).mean())} - '+
           f'{float(AVAR1c_95p.sel(time=slice(2081,2101)).mean())} ]')
     
+# def remove_discontinuities(da, gap):
+#     '''Remove discontinuities in a time series, numpy or data array.
+#     da: The input data
+#     gap: the maximum gap allowed in the data above which the 
+#     discontinuity is removed'''
+    
+#     da_out = da.copy()
+#     diff = np.array(da[1:]) - np.array(da[:-1])
+#     indpb = np.where(np.abs(diff) > gap)[0]
+#     print("### Removing discontinuities at these indices: ####")
+#     print(indpb)
+#     for k in indpb:
+#         da_out[k+1:] = da[k+1:] - da[k+1] + da[k]
+#     return da_out
+
 def remove_discontinuities(da, gap):
     '''Remove discontinuities in a time series, numpy or data array.
     da: The input data
@@ -168,7 +190,15 @@ def remove_discontinuities(da, gap):
     discontinuity is removed'''
     
     da_out = da.copy()
-    diff = np.array(da[1:]) - np.array(da[:-1])
+    if isinstance(da, xr.DataArray):
+        # Make sure to load the data, Dask arrays do not support item assigment
+        da_out.load()
+        diff = da.diff('time')
+    elif isinstance(da, np.ndarray):
+        diff = np.array(da[1:]) - np.array(da[:-1])
+    else:
+        print('ERROR: Input object type not supported')
+        
     indpb = np.where(np.abs(diff) > gap)[0]
     print("### Removing discontinuities at these indices: ####")
     print(indpb)
