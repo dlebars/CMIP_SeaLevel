@@ -41,7 +41,10 @@ name_da = {0: VAR+'_corrected', 1: 'trend_piControl'}
 for j in range(2):
     da = xr.DataArray(np.zeros([dimMod, dimt]), coords=[ModelList.Model, time_all], 
                       dims=['model', 'time'])
+    trend_da = 
     for i in range(dimMod):
+        print(f'####### Working on model {i}, {Model[i]}  ######################')
+        
         if (MIP[j] == 'ScenarioMIP') and  (ModelList.Model[i] == 'MPI-ESM1-2-HR'):
             # For this model the scenarios are done at DKRZ while piControl 
             # and historical are done at MPI-M
@@ -66,18 +69,17 @@ for j in range(2):
             sys.exit('ERROR: No file available at that location')
             
         try:
-            f1 = xr.open_mfdataset(files1,combine='by_coords', use_cftime=True)
+            f1 = xr.open_mfdataset(files1, combine='by_coords', use_cftime=True)
         except:
             print('Open by_coords did not work for:'+ ModelList.Center[i]+
                   '/'+ModelList.Model[i]+'/'+EXP[j])
             print('Using nested option instead')
-            f1 = xr.open_mfdataset(files1,combine='nested', concat_dim='time', 
+            f1 = xr.open_mfdataset(files1, combine='nested', concat_dim='time', 
                                    use_cftime=True)
-            
+        
         VAR1   = f1[VAR].squeeze()
         VAR1a = loc.yearly_mean(VAR1)
 
-        timeUTa = VAR1a.time
         if EXP[j] == 'piControl':
             # Assumes piControl simulation starts in 1850
             # This is not the case for all models so it should be improved!
@@ -85,12 +87,11 @@ for j in range(2):
     
         if ModelList.Model[i] == 'MRI-ESM2-0':
             VAR1a = loc.remove_discontinuities(VAR1a, 0.02)
-            # The function remove_discontinuities returns a numpy array
         
         da[i,:] = VAR1a.sel(time=slice(year_min,year_max))
     ds[name_da[j]] = da
 
-if year_max == 2300: #TODO
+if year_max == 2300: #TODO Old code bellow
     print('### List of models that run to 2300')
     for i in range(0,dimMod-1):
         tot_mis = np.sum(np.isnan(AVAR1[0,i,:]))
@@ -105,7 +106,6 @@ if verbose:
     loc.print_results_da(ds[VAR+'_corrected'])
 
 ### Correct for the trend in the piControl simulation
-AVAR1ct = np.zeros([2,dimMod, dimt])
 dtrend = signal.detrend(ds['trend_piControl'], axis=1, type='linear')
 ds['trend_piControl'] = ds['trend_piControl'] - dtrend
 ds[VAR+'_corrected'] = ds[VAR+'_corrected'] - ds['trend_piControl']

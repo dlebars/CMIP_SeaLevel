@@ -79,9 +79,7 @@ for i in range(len(Model)):
         if EXP != 'historical':
             sce_ds = xr.open_mfdataset(files_sce,combine='by_coords')
     except:
-        print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
-        print(f'Could not open data from {Model[i]}')
-        print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
+        print(f'!!!!!!!!! Could not open data from {Model[i]}!!!!!!!!!!!!!!!')
         continue
     
     if EXP != 'historical':
