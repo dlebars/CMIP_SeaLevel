@@ -9,8 +9,9 @@ from scipy import signal
 
 def select_cmip5_files(VAR, EXP, Center, Model):
     '''Return a list of paths to the CMIP5 data files'''
-    DataDir  = '/nobackup/users/bars/synda/cmip5/output1/'
-    p = Path(DataDir+Center+'/'+Model+
+    
+    data_dir  = '/nobackup/users/bars/synda/cmip5/output1/'
+    p = Path(data_dir+Center+'/'+Model+
                  '/'+EXP+'/'+'mon')
     files = list(p.glob('*/*/*/*/'+VAR+'/*'+VAR+'*.nc'))
     # Select the last version of data: 
@@ -21,6 +22,27 @@ def select_cmip5_files(VAR, EXP, Center, Model):
     vs.sort()
     files = sorted(p.glob('*/*/*/'+vs[-1]+'/'+VAR+'/*'+VAR+'*.nc'))
     return files
+
+def select_cmip6_files(EXP, VAR, ModelList):
+    '''Provides a list of full paths to CMIP6 data'''
+    
+    MIP = {'piControl' : 'CMIP', 
+           'historical' : 'CMIP',
+           'ssp119' : 'ScenarioMIP', 
+           'ssp126' : 'ScenarioMIP', 
+           'ssp245' : 'ScenarioMIP', 
+           'ssp370' : 'ScenarioMIP', 
+           'ssp585' : 'ScenarioMIP'}
+    
+    data_dir  = '/nobackup_1/users/bars/synda_cmip6/CMIP6/'
+    data_path = (data_dir+MIP[EXP]+'/'+ModelList.Center+'/'+ModelList.Model+
+                '/'+EXP+'/'+ModelList.Ensemble+'/Omon/'+VAR+'/'+
+                ModelList.Grid+'/'+ModelList[EXP+'_Version'])
+    print('Looking for files there:')
+    print(data_path)
+    p = Path(data_path)
+    all_files = sorted(p.glob('*'+VAR+'*.nc'))
+    return all_files
 
 def yearly_mean(ds):
     '''Convert the data set or data array to year'''
@@ -59,12 +81,7 @@ def trend_zos_pic_cmip5(ModelList, order, year_min, year_max, conv_pic_hist,
         print("#### Using following files: ####")
         print(files)
     
-    try:
-        ds = xr.open_mfdataset(files,combine='by_coords')
-    except:
-        print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
-        print(f'Could not open data from {Model[i]}')
-        print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
+    ds = xr.open_mfdataset(files,combine='by_coords')
 
     y_ds = yearly_mean(ds)
     new_year = np.array(y_ds.time) + conv_pic_hist
@@ -98,18 +115,6 @@ def rotate_longitude(ds):
     ds = ds.roll({lon:180}, roll_coords=True)
     ds[lon] = np.where(ds[lon]>180, ds[lon]-360, ds[lon])
     return ds
-
-def full_data_paths(DataDir, MIP, ModelList, EXP, VAR):
-    '''Provides a list of full paths to CMIP6 data'''
-    
-    DataPath = (DataDir+MIP+'/'+ModelList.Center+'/'+ModelList.Model+
-                '/'+EXP+'/'+ModelList.Ensemble+'/Omon/'+VAR+'/'+
-                ModelList.Grid+'/'+ModelList[EXP+'_Version'])
-    print('Looking for files there:')
-    print(DataPath)
-    p = Path(DataPath)
-    all_files = sorted(p.glob('*'+VAR+'*.nc'))
-    return all_files
 
 def export2netcdf(ds, name_output, script_name):
     '''Export a dataset as netcdf. 

@@ -17,13 +17,14 @@ import pandas as pd
 import xesmf as xe
 
 import mod_loc as loc
+import mod_trend_picontrol as pic
 
 verbose = False
 VAR = 'zos'
 EXP = 'historical' # historical, rcp45, rcp85
 
-year_min_ref = 1986  # Included. Beginning of reference period
-year_max_ref = 2006  # Excluded. End of reference period
+ref_p_min = 1986  # Included. Beginning of reference period
+ref_p_max = 2006  # Excluded. End of reference period
 
 if EXP == 'historical':
     year_min = 1900 # Could start from 1850
@@ -115,7 +116,7 @@ for i in range(len(Model)):
     if verbose:
         print(regridder)
     
-    RefVAR1 = y_ds[VAR].sel(time=slice(year_min_ref,year_max_ref)).mean(dim='time')
+    RefVAR1 = y_ds[VAR].sel(time=slice(ref_p_min,ref_p_max)).mean(dim='time')
 
     # Use the reference field to mask the small seas that are not connected to the
     # ocean and areas where sea ice is included on the ocean load
@@ -123,19 +124,7 @@ for i in range(len(Model)):
     MaskRefVAR1  = np.where((RefVAR1_corr>=2) | (RefVAR1_corr<=-2),np.nan,1)
 
     if verbose:
-        print('Check info about piControl branching:')
-        try:
-            print(f"parent_experiment_id : {hist_ds.attrs['parent_experiment_id']}")
-        except:
-            print('No parent_experiment_id attribute')
-        try:
-            print(f"parent_experiment_rip : {hist_ds.attrs['parent_experiment_rip']}")
-        except:
-            print('No parent_experiment_rip attribute')
-        try:
-            print(f"branch_time : {hist_ds.attrs['branch_time']}")
-        except:
-            print('No branch_time attribute')
+        pic.info_branching(hist_ds.attrs)
             
     try:
         # Convert the year from piControl to historical run
@@ -144,14 +133,16 @@ for i in range(len(Model)):
         # Pick a random large value that makes sure branching is not used in
         # trend_zos_pic_cmip5
         conv_pic_hist = -9999
+    
     Trend_pic_coeff = loc.trend_zos_pic_cmip5(ModelList.iloc[i], order=1, 
                                               year_min=1850, year_max=2100,
                                               conv_pic_hist=conv_pic_hist)
-    # Build polynomial from coefficients and convert from m to cm per year
+    
+    # Build polynomial from coefficients and convert from m to cm
     Trend_pic = xr.polyval(coord=y_ds.time, coeffs=Trend_pic_coeff)*100
     
     # Remove the average over the reference period
-    Trend_pic = Trend_pic - Trend_pic.sel(time=slice(year_min_ref,year_max_ref)
+    Trend_pic = Trend_pic - Trend_pic.sel(time=slice(ref_p_min,ref_p_max)
                                          ).mean(dim='time')
     
     Trend_pic = Trend_pic.rename({Trend_pic.dims[1]:name_lat, 
@@ -174,7 +165,7 @@ for i in range(len(Model)):
 
         # Effective number of years to detrend: year of interest 
         # minus mean of reference period
-        nbyears = year+0.5 - (year_max_ref+year_min_ref)/2
+        nbyears = year+0.5 - (ref_p_max+ref_p_min)/2
 
         DTrendVAR1 = AnomVAR1 - Trend_pic.sel(time=year)
 
