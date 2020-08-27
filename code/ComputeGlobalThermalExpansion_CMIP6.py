@@ -49,32 +49,36 @@ for i in range(dimMod):
         # and historical are done at MPI-M
         ModelList.Center[i] = 'DKRZ'
 
-    files1 = loc.select_cmip6_files(EXP, VAR, ModelList.iloc[i])
+    sce_files = loc.select_cmip6_files(EXP, VAR, ModelList.iloc[i])
 
     # Add historical simulation as well
     if (ModelList.Model[i] == 'MPI-ESM1-2-HR'):
         ModelList.Center[i] = 'MPI-M'
 
-    files12 = loc.select_cmip6_files('historical', VAR, ModelList.iloc[i])
-    files1 = files12 + files1
+    hist_files = loc.select_cmip6_files('historical', VAR, ModelList.iloc[i])
 
-    if len(files1) > 0:
+    if len(sce_files+hist_files) > 0:
         if verbose:
             print('#### Using the following files: ####')
-            [print(str(x)) for x in  files1]
+            [print(str(x)) for x in  (sce_files+hist_files)]
     else:
         sys.exit('ERROR: No file available at that location')
 
     try:
-        ds1 = xr.open_mfdataset(files1, combine='by_coords', use_cftime=True)
+        hist_ds = xr.open_mfdataset(hist_files, combine='by_coords', use_cftime=True)
+        sce_ds = xr.open_mfdataset(sce_files, combine='by_coords', use_cftime=True)
     except:
         print('Open by_coords did not work for:'+ ModelList.Center[i]+
               '/'+ModelList.Model[i]+'/'+EXP)
         print('Using nested option instead')
-        ds1 = xr.open_mfdataset(files1, combine='nested', concat_dim='time', 
+        hist_ds = xr.open_mfdataset(hist_files, combine='nested', concat_dim='time', 
                                use_cftime=True)
-
-    VAR1 = ds1[VAR].squeeze()
+        sce_ds = xr.open_mfdataset(sce_files, combine='nested', concat_dim='time', 
+                               use_cftime=True)
+    
+    all_ds = xr.concat([hist_ds,sce_ds],'time')
+        
+    VAR1 = all_ds[VAR].squeeze()
     VAR1a = loc.yearly_mean(VAR1)
 
     if ModelList.Model[i] == 'MRI-ESM2-0':
@@ -82,11 +86,15 @@ for i in range(dimMod):
         
     # Compute the trend from the piControl simulations and save trend
     if verbose:
-        pic.info_branching(ds1.attrs)
+        pic.info_branching(hist_ds.attrs)
     
     try:
         # Convert the year from piControl to historical run
-        conv_pic_hist = float(ds1.time[0]) - float(ds1.attrs['branch_time_in_parent'])
+        attrs = {'units': hist_ds.attrs['parent_time_units']}
+        time_flt = [float(hist_ds.attrs['branch_time_in_parent'])]
+        time_ds = xr.Dataset({'time': ('time', time_flt, attrs)})
+        time_ds = xr.decode_cf(time_ds, use_cftime=True)
+        conv_pic_hist = float(VAR1a.time[0]) - time_ds.time.dt.year.values[0]
     except:
         # Pick a random large value that makes sure branching is not used in
         # trend_zos_pic_cmip5

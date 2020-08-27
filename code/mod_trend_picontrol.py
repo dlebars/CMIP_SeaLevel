@@ -29,6 +29,7 @@ def info_branching(ds_attrs):
         try_attr('parent_variant_label', ds_attrs)
         try_attr('branch_time_in_child', ds_attrs)
         try_attr('branch_time_in_parent', ds_attrs)
+        try_attr('parent_time_units', ds_attrs)
         
 def trend_pic(VAR, ModelList, order, year_min, year_max, conv_pic_hist, 
                         verbose=False):
@@ -58,7 +59,7 @@ def trend_pic(VAR, ModelList, order, year_min, year_max, conv_pic_hist,
     # Require that at least 90% of the years are available
     if overlap_years >= tot_year*0.9:
         print('Using branching time')
-        y_ds = y_ds.assign_coords(time=(y_ds.year + conv_pic_hist))
+        y_ds = y_ds.assign_coords(time=(y_ds.time + conv_pic_hist))
     else:
         print('Not using branching time for piControl')
         # Assumes piControl simulation starts in 1850
