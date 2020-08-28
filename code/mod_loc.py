@@ -7,7 +7,7 @@ import numpy as np
 import xarray as xr
 from scipy import signal
 
-def select_cmip5_files(VAR, EXP, Center, Model):
+def select_cmip5_files(EXP, VAR, Center, Model):
     '''Return a list of paths to the CMIP5 data files'''
     
     data_dir  = '/nobackup/users/bars/synda/cmip5/output1/'

@@ -76,7 +76,7 @@ def trend_zos_pic_cmip5(ModelList, order, year_min, year_max, conv_pic_hist,
     tot_year = year_max - year_min + 1
     
     Model = ModelList.Model
-    files = select_cmip5_files(VAR, 'piControl', ModelList.Center, Model)
+    files = select_cmip5_files('piControl', VAR, ModelList.Center, Model)
 
     if verbose:
         print("#### Using following files: ####")

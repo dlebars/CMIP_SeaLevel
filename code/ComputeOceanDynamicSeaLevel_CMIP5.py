@@ -40,6 +40,7 @@ if EXP == 'historical':
     EXPm = 'rcp85'
 else:
     EXPm = EXP
+
 ModelList = pd.read_csv(dir_inputs+'CMIP5modelSelection_'+EXPm+'_'+VAR+'.txt', 
                         delim_whitespace=True, names=['Center','Model'], 
                         comment='#')
@@ -63,10 +64,10 @@ print(Model)
 
 for i in range(len(Model)):
     print(f'####### Working on model {i}, {Model[i]}  ######################')
-    files_hist = loc.select_cmip5_files(VAR, 'historical', ModelList.Center[i], 
+    files_hist = loc.select_cmip5_files('historical', VAR, ModelList.Center[i], 
                                         Model[i])
     if EXP != 'historical':
-        files_sce = loc.select_cmip5_files(VAR, EXP, ModelList.Center[i], 
+        files_sce = loc.select_cmip5_files(EXP, VAR, ModelList.Center[i], 
                                            Model[i])
     if verbose:
         print('#### Using the following historical files: ####')

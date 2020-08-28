@@ -20,16 +20,16 @@ ref_p_max = 2005
 year_min = 1986  # Included
 year_max = 2100  # Excluded
 
-Dir_CMIP5_TE = '../../CMIP5_ThermalExp/'
-Dir_outputs = '../outputs/'
+dir_inputs = '../inputs/'
+dir_outputs = '../outputs/'
 
 col_names = ['Center','Model']
 if year_max == 2300:
-    ModelList = pd.read_csv(Dir_CMIP5_TE+'CMIP5modelSelection_'+EXP[0]+'_'+VAR+
+    ModelList = pd.read_csv(dir_inputs+'CMIP5modelSelection_'+EXP[0]+'_'+VAR+
                             '_2300.txt', delim_whitespace=True, 
                             names=col_names, comment='#')
 else:
-    ModelList = pd.read_csv(Dir_CMIP5_TE+'CMIP5modelSelection_'+EXP[0]+'_'+VAR+'.txt', 
+    ModelList = pd.read_csv(dir_inputs+'CMIP5modelSelection_'+EXP[0]+'_'+VAR+'.txt', 
                             delim_whitespace=True, names=col_names, 
                             comment='#')
 
@@ -43,7 +43,7 @@ AVAR1  = np.zeros([2,dimMod,dimt])
 
 for j in range(2):
     for i in range(dimMod):
-        files1 = loc.select_cmip5_files(VAR, EXP[j], ModelList.Center[i], 
+        files1 = loc.select_cmip5_files(EXP[j], VAR, ModelList.Center[i], 
                                     ModelList.Model[i])
         print('#### Using the following files: ####')
         [print(str(x)) for x in  files1]
@@ -68,7 +68,7 @@ for j in range(2):
 
         if j == 0:
             # Add historical simulation as well
-            files12 = loc.select_cmip5_files(VAR, 'historical', ModelList.Center[i], 
+            files12 = loc.select_cmip5_files('historical', VAR, ModelList.Center[i], 
                                          ModelList.Model[i])
             print('### Also using these historical files: ###')
             [print(str(x)) for x in  files1]
@@ -196,7 +196,7 @@ MAT_OUT_ds.attrs['source_file'] = ('This NetCDF file was built from '+
 
 MAT_OUT_ds.attrs['creation_date'] = datetime.now().strftime('%Y-%m-%d %H:%M')
 
-NameOutput = Dir_outputs+'CMIP5_SeaLevel_'+EXP[0]+'_'+VAR+'_'+str(year_min)+'-'+str(year_max)+'.nc'
+NameOutput = dir_outputs+'CMIP5_SeaLevel_'+EXP[0]+'_'+VAR+'_'+str(year_min)+'-'+str(year_max)+'.nc'
 if os.path.isfile(NameOutput):
     os.remove(NameOutput)
 MAT_OUT_ds.to_netcdf(NameOutput) #mode='a' to append or overwrite
