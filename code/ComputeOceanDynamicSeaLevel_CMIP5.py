@@ -64,11 +64,9 @@ print(Model)
 
 for i in range(len(Model)):
     print(f'####### Working on model {i}, {Model[i]}  ######################')
-    files_hist = loc.select_cmip5_files('historical', VAR, ModelList.Center[i], 
-                                        Model[i])
+    files_hist = loc.select_cmip5_files('historical', VAR, ModelList.loc[i])
     if EXP != 'historical':
-        files_sce = loc.select_cmip5_files(EXP, VAR, ModelList.Center[i], 
-                                           Model[i])
+        files_sce = loc.select_cmip5_files(EXP, VAR, ModelList.loc[i])
     if verbose:
         print('#### Using the following historical files: ####')
         print(files_hist)

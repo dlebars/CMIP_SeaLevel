@@ -1,5 +1,5 @@
 ###############################################################################
-# ComputeGlobalMeanThermalExpansion.py
+# ComputeGlobalThermalExpansion.py
 ###############################################################################
 
 import os
@@ -18,7 +18,7 @@ VAR = 'zostoga'
 # EXP available:
 # cmip6: 'ssp119', 'ssp126', 'ssp245', 'ssp370', 'ssp585'
 # cmip5: 'rcp26', 'rcp45', 'rcp85'
-EXP = 'ssp585' 
+EXP = 'rcp85' 
 
 # Select the mip that corresponds to the scenario
 MIP_dic = {'ssp119':'cmip6',
@@ -40,6 +40,7 @@ year_max = 2100  # Included
 gap = 0.02 # Maximum gap authorized (in meters) when removing discontinuities
 
 dir_outputs = '../outputs/'
+dir_inputs = '../inputs/'
 
 # Select the file containing the model list to analyse
 if MIP == 'cmip5':
@@ -69,10 +70,8 @@ for i in range(dimMod):
     print(f'####### Working on model {i}, {ModelList.Model[i]}  ############')
 
     if MIP == 'cmip5':
-        sce_files = loc.select_cmip5_files(EXP[j], VAR, ModelList.Center[i], 
-                            ModelList.Model[i])
-        hist_files = loc.select_cmip5_files('historical', VAR, ModelList.Center[i], 
-                             ModelList.Model[i])
+        sce_files = loc.select_cmip5_files(EXP, VAR, ModelList.loc[i])
+        hist_files = loc.select_cmip5_files('historical', VAR, ModelList.loc[i])
         
     elif MIP == 'cmip6':
         if ModelList.Model[i] == 'MPI-ESM1-2-HR':
@@ -120,27 +119,28 @@ for i in range(dimMod):
         if ModelList.Model[i] == 'MRI-ESM2-0':
             VAR1a = loc.remove_discontinuities(VAR1a, gap)
     
-    
-    
     # Compute the trend from the piControl simulations and save trend
     if verbose:
         pic.info_branching(hist_ds.attrs)
     
     try:
         # Convert the year from piControl to historical run
-        attrs = {'units': hist_ds.attrs['parent_time_units']}
-        time_flt = [float(hist_ds.attrs['branch_time_in_parent'])]
-        time_ds = xr.Dataset({'time': ('time', time_flt, attrs)})
-        time_ds = xr.decode_cf(time_ds, use_cftime=True)
-        conv_pic_hist = float(VAR1a.time[0]) - time_ds.time.dt.year.values[0]
+        if MIP == 'cmip5':
+            conv_pic_hist = float(VAR1a.time[0]) - float(hist_ds.attrs['branch_time'])
+        elif MIP == 'cmip6':
+            attrs = {'units': hist_ds.attrs['parent_time_units']}
+            time_flt = [float(hist_ds.attrs['branch_time_in_parent'])]
+            time_ds = xr.Dataset({'time': ('time', time_flt, attrs)})
+            time_ds = xr.decode_cf(time_ds, use_cftime=True)
+            conv_pic_hist = float(VAR1a.time[0]) - time_ds.time.dt.year.values[0]
     except:
         # Pick a random large value that makes sure branching is not used in
         # trend_zos_pic_cmip5
         conv_pic_hist = -9999
         
-    Trend_pic_coeff = pic.trend_pic(VAR, ModelList.iloc[i], order=1, 
-                                          year_min=1850, year_max=2100,
-                                          conv_pic_hist=conv_pic_hist)
+    Trend_pic_coeff = pic.trend_pic(MIP, VAR, ModelList.iloc[i], order=1, 
+                                    year_min=1850, year_max=2100,
+                                    conv_pic_hist=conv_pic_hist)
     
     # Build polynomial from coefficients
     Trend_pic = xr.polyval(coord=VAR1a.time, coeffs=Trend_pic_coeff)
@@ -177,5 +177,5 @@ if verbose:
 
 print("### Export data to a NetCDF file ######################################")
 script_name = os.path.basename(__file__)
-name_output = f'{dir_outputs}CMIP6_SeaLevel_{EXP}_{VAR}_{year_min}_{year_max}.nc'
+name_output = f'{dir_outputs}{MIP}_SeaLevel_{EXP}_{VAR}_{year_min}_{year_max}.nc'
 loc.export2netcdf(ds, name_output, script_name)

@@ -31,14 +31,17 @@ def info_branching(ds_attrs):
         try_attr('branch_time_in_parent', ds_attrs)
         try_attr('parent_time_units', ds_attrs)
         
-def trend_pic(VAR, ModelList, order, year_min, year_max, conv_pic_hist, 
+def trend_pic(MIP, VAR, ModelList, order, year_min, year_max, conv_pic_hist, 
                         verbose=False):
     '''Compute zos trend over the pre-industrial control model simulations'''
     
     EXP = 'piControl'
     tot_year = year_max - year_min + 1
     
-    files = loc.select_cmip6_files('piControl', VAR, ModelList)
+    if MIP == 'cmip5':
+        files = loc.select_cmip5_files('piControl', VAR, ModelList)
+    elif MIP == 'cmip6':
+        files = loc.select_cmip6_files('piControl', VAR, ModelList)
 
     if verbose:
         print("#### Using following files: ####")

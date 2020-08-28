@@ -1,5 +1,5 @@
 ###############################################################################
-# ComputeGlobalMeanThermalExpansion_CMIP5.py: From CMIP5 data
+# ComputeGlobalThermalExpansion_CMIP5.py: From CMIP5 data
 #   Python translation of PlotThermalExp.ncl
 ###############################################################################
 

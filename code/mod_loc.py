@@ -7,11 +7,11 @@ import numpy as np
 import xarray as xr
 from scipy import signal
 
-def select_cmip5_files(EXP, VAR, Center, Model):
+def select_cmip5_files(EXP, VAR, ModelList):
     '''Return a list of paths to the CMIP5 data files'''
     
     data_dir  = '/nobackup/users/bars/synda/cmip5/output1/'
-    p = Path(data_dir+Center+'/'+Model+
+    p = Path(data_dir+ModelList.Center+'/'+ModelList.Model+
                  '/'+EXP+'/'+'mon')
     files = list(p.glob('*/*/*/*/'+VAR+'/*'+VAR+'*.nc'))
     # Select the last version of data: 
