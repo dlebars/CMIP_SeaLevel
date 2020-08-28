@@ -1,5 +1,5 @@
 ###############################################################################
-# ComputeGlobalMeanThermalExpansion_CMIP6.py: From CMIP6 data
+# ComputeGlobalMeanThermalExpansion.py
 ###############################################################################
 
 import os
@@ -13,9 +13,23 @@ from scipy import signal
 import mod_loc as loc
 import mod_trend_picontrol as pic
 
-verbose = True
+verbose = True # Print additional information
 VAR = 'zostoga'
-EXP = 'ssp585' # 'ssp119', 'ssp126', 'ssp245', 'ssp370', 'ssp585'
+# EXP available:
+# cmip6: 'ssp119', 'ssp126', 'ssp245', 'ssp370', 'ssp585'
+# cmip5: 'rcp26', 'rcp45', 'rcp85'
+EXP = 'ssp585' 
+
+# Select the mip that corresponds to the scenario
+MIP_dic = {'ssp119':'cmip6',
+           'ssp126':'cmip6',
+           'ssp245':'cmip6',
+           'ssp370':'cmip6',
+           'ssp585':'cmip6', 
+           'rcp26':'cmip5', 
+           'rcp45':'cmip5', 
+           'rcp85':'cmip5'}
+MIP = MIP_dic[EXP]
 
 ref_p_min = 1986
 ref_p_max = 2005 #TODO excluded so increase to 2006?
@@ -23,10 +37,20 @@ ref_p_max = 2005 #TODO excluded so increase to 2006?
 year_min = 1986  # Included
 year_max = 2100  # Included
 
-Dir_SelectPath = '../SelectPaths_CMIP6/'
+gap = 0.02 # Maximum gap authorized (in meters) when removing discontinuities
+
 dir_outputs = '../outputs/'
-ModelList = pd.read_csv(Dir_SelectPath+'AvailableExperiments_'+str(VAR)+
-                        '_historical_piControl_'+EXP+'.csv')
+
+# Select the file containing the model list to analyse
+if MIP == 'cmip5':
+    col_names = ['Center','Model']
+    ModelList = pd.read_csv(f'{dir_inputs}CMIP5modelSelection_{EXP}_{VAR}.txt', 
+                            delim_whitespace=True, names=col_names,
+                            comment='#')
+elif MIP == 'cmip6':
+    dir_SelectPath = '../SelectPaths_CMIP6/'
+    ModelList = pd.read_csv(f'{dir_SelectPath}AvailableExperiments_{VAR}'+
+                            f'_historical_piControl_{EXP}.csv')
 
 dimMod = len(ModelList.Model)
 time_all = np.arange(year_min, year_max ) + 0.5
@@ -44,18 +68,25 @@ trend_da = xr.DataArray(np.zeros([dimMod, dimt]), coords=[ModelList.Model, time_
 for i in range(dimMod):
     print(f'####### Working on model {i}, {ModelList.Model[i]}  ############')
 
-    if ModelList.Model[i] == 'MPI-ESM1-2-HR':
-        # For this model the scenarios are done at DKRZ while piControl 
-        # and historical are done at MPI-M
-        ModelList.Center[i] = 'DKRZ'
+    if MIP == 'cmip5':
+        sce_files = loc.select_cmip5_files(EXP[j], VAR, ModelList.Center[i], 
+                            ModelList.Model[i])
+        hist_files = loc.select_cmip5_files('historical', VAR, ModelList.Center[i], 
+                             ModelList.Model[i])
+        
+    elif MIP == 'cmip6':
+        if ModelList.Model[i] == 'MPI-ESM1-2-HR':
+            # For this model the scenarios are done at DKRZ while piControl 
+            # and historical are done at MPI-M
+            ModelList.Center[i] = 'DKRZ'
 
-    sce_files = loc.select_cmip6_files(EXP, VAR, ModelList.iloc[i])
+        sce_files = loc.select_cmip6_files(EXP, VAR, ModelList.iloc[i])
 
-    # Add historical simulation as well
-    if (ModelList.Model[i] == 'MPI-ESM1-2-HR'):
-        ModelList.Center[i] = 'MPI-M'
+        # Read historical simulation as well
+        if (ModelList.Model[i] == 'MPI-ESM1-2-HR'):
+            ModelList.Center[i] = 'MPI-M'
 
-    hist_files = loc.select_cmip6_files('historical', VAR, ModelList.iloc[i])
+        hist_files = loc.select_cmip6_files('historical', VAR, ModelList.iloc[i])
 
     if len(sce_files+hist_files) > 0:
         if verbose:
@@ -81,9 +112,16 @@ for i in range(dimMod):
     VAR1 = all_ds[VAR].squeeze()
     VAR1a = loc.yearly_mean(VAR1)
 
-    if ModelList.Model[i] == 'MRI-ESM2-0':
-        VAR1a = loc.remove_discontinuities(VAR1a, 0.02)
-        
+    # Remove some discontinuites in some time series
+    if MIP == 'cmip5':
+        if ModelList.Model[i] in ['bcc-csm1-1', 'bcc-csm1-1-m', 'GISS-E2-R-CC']:
+            VAR1a = loc.remove_discontinuities(VAR1a, gap)
+    elif MIP == 'cmip6':
+        if ModelList.Model[i] == 'MRI-ESM2-0':
+            VAR1a = loc.remove_discontinuities(VAR1a, gap)
+    
+    
+    
     # Compute the trend from the piControl simulations and save trend
     if verbose:
         pic.info_branching(hist_ds.attrs)
