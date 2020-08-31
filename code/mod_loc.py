@@ -149,8 +149,9 @@ def remove_discontinuities(da, gap):
         print('ERROR: Input object type not supported')
         
     indpb = np.where(np.abs(diff) > gap)[0]
-    print("### Removing discontinuities at these indices: ####")
-    print(indpb)
-    for k in indpb:
-        da_out[k+1:] = da[k+1:] - da[k+1] + da[k]
+    if len(indpb) > 0:
+        print("### Removing discontinuities at these indices: ####")
+        print(indpb)
+        for k in indpb:
+            da_out[k+1:] = da[k+1:] - da[k+1] + da[k]
     return da_out

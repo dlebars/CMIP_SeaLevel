@@ -18,7 +18,7 @@ VAR = 'zostoga'
 # EXP available:
 # cmip6: 'ssp119', 'ssp126', 'ssp245', 'ssp370', 'ssp585'
 # cmip5: 'rcp26', 'rcp45', 'rcp85'
-EXP = 'rcp85' 
+EXP = 'rcp85'
 
 # Select the mip that corresponds to the scenario
 MIP_dic = {'ssp119':'cmip6',
@@ -112,12 +112,7 @@ for i in range(dimMod):
     VAR1a = loc.yearly_mean(VAR1)
 
     # Remove some discontinuites in some time series
-    if MIP == 'cmip5':
-        if ModelList.Model[i] in ['bcc-csm1-1', 'bcc-csm1-1-m', 'GISS-E2-R-CC']:
-            VAR1a = loc.remove_discontinuities(VAR1a, gap)
-    elif MIP == 'cmip6':
-        if ModelList.Model[i] == 'MRI-ESM2-0':
-            VAR1a = loc.remove_discontinuities(VAR1a, gap)
+    VAR1a = loc.remove_discontinuities(VAR1a, gap)
     
     # Compute the trend from the piControl simulations and save trend
     if verbose:
@@ -140,7 +135,8 @@ for i in range(dimMod):
         
     Trend_pic_coeff = pic.trend_pic(MIP, VAR, ModelList.iloc[i], order=1, 
                                     year_min=1850, year_max=2100,
-                                    conv_pic_hist=conv_pic_hist)
+                                    conv_pic_hist=conv_pic_hist, gap=gap, 
+                                    verbose=verbose)
     
     # Build polynomial from coefficients
     Trend_pic = xr.polyval(coord=VAR1a.time, coeffs=Trend_pic_coeff)

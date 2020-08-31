@@ -32,7 +32,7 @@ def info_branching(ds_attrs):
         try_attr('parent_time_units', ds_attrs)
         
 def trend_pic(MIP, VAR, ModelList, order, year_min, year_max, conv_pic_hist, 
-                        verbose=False):
+              gap, verbose=False):
     '''Compute zos trend over the pre-industrial control model simulations'''
     
     EXP = 'piControl'
@@ -65,6 +65,7 @@ def trend_pic(MIP, VAR, ModelList, order, year_min, year_max, conv_pic_hist,
         
     VAR1 = y_ds[VAR].squeeze()
     VAR1 = VAR1.sel(time=slice(year_min, year_max))
+    VAR1 = loc.remove_discontinuities(VAR1, gap)
     VAR1_coeff = VAR1.polyfit(dim='time',deg=order)
     
     return VAR1_coeff.polyfit_coefficients
