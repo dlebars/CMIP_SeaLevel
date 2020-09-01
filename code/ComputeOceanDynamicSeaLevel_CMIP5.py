@@ -1,5 +1,5 @@
 ###############################################################################
-# ComputeOceanDynmicSeaLevel_CMIP5.py: 
+# ComputeOceanDynamicSeaLevel_CMIP5.py: 
 # - Read zos variable from local CMIP5 files synchronized from ESGF nodes using 
 # synda
 # - Correct the data by removing the trend from piCcontrol simulations

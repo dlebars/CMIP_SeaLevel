@@ -84,7 +84,7 @@ def trend_zos_pic_cmip5(ModelList, order, year_min, year_max, conv_pic_hist,
 
     if verbose:
         print("#### Using following files: ####")
-        print(files)
+        [print(str(x)) for x in files]
     
     ds = xr.open_mfdataset(files,combine='by_coords')
 

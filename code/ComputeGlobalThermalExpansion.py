@@ -111,7 +111,7 @@ for i in range(dimMod):
     VAR1 = all_ds[VAR].squeeze()
     VAR1a = loc.yearly_mean(VAR1)
 
-    # Remove some discontinuites in some time series
+    # Remove discontinuites in some time series
     VAR1a = loc.remove_discontinuities(VAR1a, gap)
     
     # Compute the trend from the piControl simulations and save trend

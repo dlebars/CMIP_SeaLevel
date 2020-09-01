@@ -126,7 +126,7 @@ for j in range(2):
         print('AVAR1[j,i,indt2]')
         print(AVAR1[j,i,indt2])
 
-if year_max == 2300:
+if year_max == 2300: #TODO old code
     print('### List of models that run to 2300')
     for i in range(0,dimMod-1):
         tot_mis = np.sum(np.isnan(AVAR1[0,i,:]))
