@@ -1,6 +1,6 @@
 ###############################################################################
-# ComputeOceanDynamicSeaLevel_CMIP5.py: 
-# - Read zos variable from local CMIP5 files synchronized from ESGF nodes using 
+# ComputeOceanDynamicSeaLevel.py: 
+# - Read zos variable from local CMIP5/CMIP6 files synchronized from ESGF nodes using 
 # synda
 # - Correct the data by removing the trend from piCcontrol simulations
 # - Regrid all fields to a common 1x1 lat/lon grid
@@ -19,9 +19,13 @@ import xesmf as xe
 import mod_loc as loc
 import mod_trend_picontrol as pic
 
-verbose = False
+verbose = True
 VAR = 'zos'
-EXP = 'historical' # historical, rcp45, rcp85
+MIP = 'cmip5' # cmip5 or cmip6
+# EXP available:
+# cmip6: 'historical', 'ssp119', 'ssp126', 'ssp245', 'ssp370', 'ssp585'
+# cmip5: 'historical', 'rcp26', 'rcp45', 'rcp85'
+EXP = 'rcp85' # historical, rcp45, rcp85
 
 ref_p_min = 1986  # Included. Beginning of reference period
 ref_p_max = 2006  # Excluded. End of reference period
@@ -30,9 +34,11 @@ if EXP == 'historical':
     year_min = 1900 # Could start from 1850
     year_max = 2006
 else:
-    year_min = 2006
+    year_min = 2098 #2006
     year_max = 2101 
-    
+
+gap = 0.02 # Maximum gap authorized (in meters) when removing discontinuities
+
 dir_outputs = '../outputs/'
 dir_inputs = '../inputs/'
 
@@ -41,9 +47,25 @@ if EXP == 'historical':
 else:
     EXPm = EXP
 
-ModelList = pd.read_csv(dir_inputs+'CMIP5modelSelection_'+EXPm+'_'+VAR+'.txt', 
-                        delim_whitespace=True, names=['Center','Model'], 
-                        comment='#')
+# Select the file containing the model list to analyse
+if MIP == 'cmip5':
+    if EXP == 'historical':
+        EXPm = 'rcp85'
+    else:
+        EXPm = EXP
+    col_names = ['Center','Model']
+    ModelList = pd.read_csv(f'{dir_inputs}CMIP5modelSelection_{EXPm}_{VAR}.txt', 
+                            delim_whitespace=True, names=col_names,
+                            comment='#')
+elif MIP == 'cmip6':
+    if EXP == 'historical':
+        EXPm = 'ssp585'
+    else:
+        EXPm = EXP
+    dir_SelectPath = '../SelectPaths_CMIP6/'
+    ModelList = pd.read_csv(f'{dir_SelectPath}AvailableExperiments_{VAR}'+
+                            f'_historical_piControl_{EXPm}.csv')
+
 Model = ModelList.Model
 
 ###### Start and end of each period 
@@ -64,22 +86,50 @@ print(Model)
 
 for i in range(len(Model)):
     print(f'####### Working on model {i}, {Model[i]}  ######################')
-    files_hist = loc.select_cmip5_files('historical', VAR, ModelList.loc[i])
-    if EXP != 'historical':
-        files_sce = loc.select_cmip5_files(EXP, VAR, ModelList.loc[i])
-    if verbose:
-        print('#### Using the following historical files: ####')
-        print(files_hist)
+    
+    # Read paths and file names
+    if MIP == 'cmip5':
         if EXP != 'historical':
-            print('#### Using the following scenario files: ####')
-            print(files_sce)
+            sce_files = loc.select_cmip5_files(EXP, VAR, ModelList.loc[i])
+        hist_files = loc.select_cmip5_files('historical', VAR, ModelList.loc[i])
+        
+    elif MIP == 'cmip6':
+        if EXP != 'historical':
+            if ModelList.Model[i] == 'MPI-ESM1-2-HR':
+            # For this model the scenarios are done at DKRZ while piControl 
+            # and historical are done at MPI-M
+                ModelList.Center[i] = 'DKRZ'
+                
+            sce_files = loc.select_cmip6_files(EXP, VAR, ModelList.iloc[i])
 
+        # Read historical simulation as well
+        if (ModelList.Model[i] == 'MPI-ESM1-2-HR'):
+            ModelList.Center[i] = 'MPI-M'
+
+        hist_files = loc.select_cmip6_files('historical', VAR, ModelList.iloc[i])
+            
     try:
-        hist_ds = xr.open_mfdataset(files_hist,combine='by_coords')
+        all_files = sce_files+hist_files
+    except:
+        all_files = hist_files
+        
+    if len(all_files) > 0:
+        if verbose:
+            print('#### Using the following files: ####')
+            [print(str(x)) for x in  (all_files)]
+    else:
+        sys.exit('ERROR: No file available at that location')        
+    
+    # Open files
+    try:
+        hist_ds = xr.open_mfdataset(hist_files, combine='by_coords', 
+                                    use_cftime=True)
         if EXP != 'historical':
-            sce_ds = xr.open_mfdataset(files_sce,combine='by_coords')
+            sce_ds = xr.open_mfdataset(sce_files, combine='by_coords', 
+                                       use_cftime=True)
     except:
         print(f'!!!!!!!!! Could not open data from {Model[i]}!!!!!!!!!!!!!!!')
+        print('Try the function open_mfdataset with the option combine="nested" ')
         continue
     
     if EXP != 'historical':
@@ -127,18 +177,26 @@ for i in range(len(Model)):
             
     try:
         # Convert the year from piControl to historical run
-        conv_pic_hist = float(y_ds.time[0]) - float(hist_ds.attrs['branch_time'])
+        if MIP == 'cmip5':
+            conv_pic_hist = float(y_ds.time[0]) - float(hist_ds.attrs['branch_time'])
+        elif MIP == 'cmip6':
+            attrs = {'units': hist_ds.attrs['parent_time_units']}
+            time_flt = [float(hist_ds.attrs['branch_time_in_parent'])]
+            time_ds = xr.Dataset({'time': ('time', time_flt, attrs)})
+            time_ds = xr.decode_cf(time_ds, use_cftime=True)
+            conv_pic_hist = float(y_ds.time[0]) - time_ds.time.dt.year.values[0]
     except:
         # Pick a random large value that makes sure branching is not used in
         # trend_zos_pic_cmip5
         conv_pic_hist = -9999
+
+    Trend_pic_coeff = pic.trend_pic(MIP, VAR, ModelList.iloc[i], order=1, 
+                                    year_min=1850, year_max=2100,
+                                    conv_pic_hist=conv_pic_hist, gap=gap, 
+                                    verbose=verbose)
     
-    Trend_pic_coeff = loc.trend_zos_pic_cmip5(ModelList.iloc[i], order=1, 
-                                              year_min=1850, year_max=2100,
-                                              conv_pic_hist=conv_pic_hist)
-    
-    # Build polynomial from coefficients and convert from m to cm
-    Trend_pic = xr.polyval(coord=y_ds.time, coeffs=Trend_pic_coeff)*100
+    # Build polynomial from coefficients
+    Trend_pic = xr.polyval(coord=y_ds.time, coeffs=Trend_pic_coeff)
     
     # Remove the average over the reference period
     Trend_pic = Trend_pic - Trend_pic.sel(time=slice(ref_p_min,ref_p_max)
@@ -159,8 +217,7 @@ for i in range(len(Model)):
                           'MRI-CGCM3']): 
             VAR1 = np.where(VAR1==0,np.nan,VAR1)
 
-        AnomVAR1 = (VAR1 - RefVAR1)*100 # Convert m to cm
-        AnomVAR1 = AnomVAR1*MaskRefVAR1
+        AnomVAR1 = (VAR1 - RefVAR1)*MaskRefVAR1
 
         # Effective number of years to detrend: year of interest 
         # minus mean of reference period
@@ -190,7 +247,8 @@ for i in range(len(Model)):
     regridder.clean_weight_file()
 
     ### Export to a NetCDF file
-    MAT_CorrectedZOS_reg = xr.DataArray(MAT_CorrectedZOS_reg, 
+    # Convert from m to cm
+    MAT_CorrectedZOS_reg = xr.DataArray(MAT_CorrectedZOS_reg*100, 
                                         coords=[years_s, mask_ds.lat, mask_ds.lon], 
                                         dims=['time', 'lat', 'lon'])
     MAT_CorrectedZOS_reg = MAT_CorrectedZOS_reg.expand_dims({'model': [Model[i]]},0)
@@ -204,7 +262,7 @@ for i in range(len(Model)):
     MAT_OUT_ds.attrs['creation_date'] = datetime.now().strftime('%Y-%m-%d %H:%M')
     MAT_OUT_ds.attrs['emission_scenario'] = EXP
 
-    NameOutput = f'{dir_outputs}CMIP5_{VAR}_{EXP}_{Model[i]}_{year_min}_{year_max}.nc'
+    NameOutput = f'{dir_outputs}{MIP}_{VAR}_{EXP}_{Model[i]}_{year_min}_{year_max}.nc'
     if os.path.isfile(NameOutput):
         os.remove(NameOutput)
     MAT_OUT_ds.to_netcdf(NameOutput)

@@ -69,6 +69,7 @@ trend_da = xr.DataArray(np.zeros([dimMod, dimt]), coords=[ModelList.Model, time_
 for i in range(dimMod):
     print(f'####### Working on model {i}, {ModelList.Model[i]}  ############')
 
+    # Read paths and file names
     if MIP == 'cmip5':
         sce_files = loc.select_cmip5_files(EXP, VAR, ModelList.loc[i])
         hist_files = loc.select_cmip5_files('historical', VAR, ModelList.loc[i])
@@ -94,6 +95,7 @@ for i in range(dimMod):
     else:
         sys.exit('ERROR: No file available at that location')
 
+    # Open files
     try:
         hist_ds = xr.open_mfdataset(hist_files, combine='by_coords', use_cftime=True)
         sce_ds = xr.open_mfdataset(sce_files, combine='by_coords', use_cftime=True)
