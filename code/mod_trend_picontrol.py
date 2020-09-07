@@ -32,8 +32,10 @@ def info_branching(ds_attrs):
         try_attr('parent_time_units', ds_attrs)
         
 def trend_pic(MIP, VAR, ModelList, order, year_min, year_max, conv_pic_hist, 
-              gap, verbose=False):
-    '''Compute zos trend over the pre-industrial control model simulations'''
+              gap, rmv_disc, verbose=False):
+    '''Compute zos trend over the pre-industrial control model simulations.
+    Use rmv_disc=True to remove discontinuities in time. Only works for time 
+    series (zostoga) not for 3D data (zos)'''
     
     EXP = 'piControl'
     tot_year = year_max - year_min + 1
@@ -45,11 +47,15 @@ def trend_pic(MIP, VAR, ModelList, order, year_min, year_max, conv_pic_hist,
 
     if verbose:
         print("#### Using following files: ####")
-        print(files)
+        [print(str(x)) for x in files]
     
     ds = xr.open_mfdataset(files, combine='by_coords', use_cftime=True)
 
     y_ds = loc.yearly_mean(ds)
+    
+    if ModelList.Model == 'BCC-CSM2-MR':
+        y_ds = y_ds.rename({'lat':'rlat', 'lon':'rlon'})
+    
     new_year = np.array(y_ds.time) + conv_pic_hist
     overlap_years = len(np.where((new_year >= year_min) & (new_year <= year_max))[0])
     print(f'Number of overlapping years : {overlap_years}')
@@ -65,7 +71,8 @@ def trend_pic(MIP, VAR, ModelList, order, year_min, year_max, conv_pic_hist,
         
     VAR1 = y_ds[VAR].squeeze()
     VAR1 = VAR1.sel(time=slice(year_min, year_max))
-#    VAR1 = loc.remove_discontinuities(VAR1, gap)
+    if rmv_disc:
+        VAR1 = loc.remove_discontinuities(VAR1, gap)
     VAR1_coeff = VAR1.polyfit(dim='time',deg=order)
     
     return VAR1_coeff.polyfit_coefficients

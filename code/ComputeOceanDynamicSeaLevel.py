@@ -21,11 +21,11 @@ import mod_trend_picontrol as pic
 
 verbose = True
 VAR = 'zos'
-MIP = 'cmip5' # cmip5 or cmip6
+MIP = 'cmip6' # cmip5 or cmip6
 # EXP available:
 # cmip6: 'historical', 'ssp119', 'ssp126', 'ssp245', 'ssp370', 'ssp585'
 # cmip5: 'historical', 'rcp26', 'rcp45', 'rcp85'
-EXP = 'rcp85' # historical, rcp45, rcp85
+EXP = 'ssp585'
 
 ref_p_min = 1986  # Included. Beginning of reference period
 ref_p_max = 2006  # Excluded. End of reference period
@@ -35,7 +35,7 @@ if EXP == 'historical':
     year_max = 2006
 else:
     year_min = 2098 #2006
-    year_max = 2101 
+    year_max = 2100  # 2101 works for CMIP5, not for some models of CMIP6
 
 gap = 0.02 # Maximum gap authorized (in meters) when removing discontinuities
 
@@ -68,10 +68,10 @@ elif MIP == 'cmip6':
 
 Model = ModelList.Model
 
-###### Start and end of each period 
+# Start and end of each period 
 years_s = np.arange(year_min,year_max) + 0.5
 
-#Read the regular 1*1 grid to use for regridded outputs
+# Read the regular 1*1 grid to use for regridded outputs
 mask_ds = xr.open_dataset(dir_inputs+'reference_masks.nc')
 
 weights = np.cos(np.deg2rad(mask_ds.lat))
@@ -139,16 +139,25 @@ for i in range(len(Model)):
         
     y_ds = loc.yearly_mean(ds)
     
-    if len(y_ds.lat.shape) == 1:
-        name_lat = 'lat'
-        name_lon = 'lon'
-    elif len(y_ds.lat.shape) == 2:
-        name_lat = 'rlat'
-        name_lon = 'rlon'        
+    if ModelList.Model[i] == 'BCC-CSM2-MR':
+        y_ds = y_ds.rename({'lat':'rlat', 'lon':'rlon'})
     
-    if 'i' and 'j' in y_ds.coords:
-        y_ds = y_ds.rename({'j':name_lat, 'i':name_lon})
+    if 'latitude' and 'longitude' in y_ds.coords:
+        y_ds = y_ds.rename({'latitude':'lat', 'longitude':'lon'})
+    elif 'nav_lat' and 'nav_lon' in y_ds.coords:
+        y_ds = y_ds.rename({'nav_lat':'lat', 'nav_lon':'lon'})
     
+#     if len(y_ds.lat.shape) == 1:
+#         name_lat = 'lat'
+#         name_lon = 'lon'
+#     elif len(y_ds.lat.shape) == 2:
+#         name_lat = 'rlat'
+#         name_lon = 'rlon'        
+    
+#     if 'i' and 'j' in y_ds.coords:
+#         y_ds = y_ds.rename({'j':name_lat, 'i':name_lon})
+    
+    # Build regridder with xESMF
     try:
         reg_method = 'bilinear'
         regridder = xe.Regridder(y_ds, ds_out, reg_method, periodic=True)
@@ -193,17 +202,29 @@ for i in range(len(Model)):
     Trend_pic_coeff = pic.trend_pic(MIP, VAR, ModelList.iloc[i], order=1, 
                                     year_min=1850, year_max=2100,
                                     conv_pic_hist=conv_pic_hist, gap=gap, 
-                                    verbose=verbose)
+                                    rmv_disc=False, verbose=verbose)
+    try:
+        # This breaks when Trend_pic_coeff does not contain values.
+        # It hapens for BCC-CSM2-MR for which polyfit does not return 
+        # coefficients but does not crash
+        test = Trend_pic_coeff.values
+        
+        # Build polynomial from coefficients
+        Trend_pic = xr.polyval(coord=y_ds.time, coeffs=Trend_pic_coeff)
+
+        # Remove the average over the reference period
+        Trend_pic = Trend_pic - Trend_pic.sel(time=slice(ref_p_min,ref_p_max)
+                                             ).mean(dim='time')
+    except:
+        print('!!! WARNING: Detrending from piControl for this model does not'+ 
+              ' work !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
+        Trend_pic = xr.DataArray(np.zeros(len(years_s)), coords=[years_s], dims=["time"])
     
-    # Build polynomial from coefficients
-    Trend_pic = xr.polyval(coord=y_ds.time, coeffs=Trend_pic_coeff)
-    
-    # Remove the average over the reference period
-    Trend_pic = Trend_pic - Trend_pic.sel(time=slice(ref_p_min,ref_p_max)
-                                         ).mean(dim='time')
-    
-    Trend_pic = Trend_pic.rename({Trend_pic.dims[1]:name_lat, 
-                              Trend_pic.dims[2]:name_lon})
+#     Trend_pic = Trend_pic.rename({Trend_pic.dims[1]:name_lat, 
+#                               Trend_pic.dims[2]:name_lon})
+
+#     if 'i' and 'j' in Trend_pic.coords:
+#         Trend_pic = Trend_pic.rename({'j':name_lat, 'i':name_lon})
     
     MAT_CorrectedZOS_reg = np.zeros([len(years_s), len(mask_ds.lat), len(mask_ds.lon)])
     
@@ -219,13 +240,9 @@ for i in range(len(Model)):
 
         AnomVAR1 = (VAR1 - RefVAR1)*MaskRefVAR1
 
-        # Effective number of years to detrend: year of interest 
-        # minus mean of reference period
-        nbyears = year+0.5 - (ref_p_max+ref_p_min)/2
-
         DTrendVAR1 = AnomVAR1 - Trend_pic.sel(time=year)
 
-        # Regrid to the reference 1*1 degree grid            
+        # Regrid to the reference 1*1 degree grid
         DTrendVAR1_reg = regridder(DTrendVAR1)
     
         # Mask other problematic regions here
@@ -241,7 +258,7 @@ for i in range(len(Model)):
         DTrendVAR1_reg  = DTrendVAR1_reg*mask_ds.mask
 
         area_mean       = DTrendVAR1_reg.weighted(weights).mean(('lon', 'lat'))
-        print(f'Removing area mean of:{np.round(area_mean.values,2)} cm')
+        print(f'Removing area mean of:{np.round(area_mean.values,2)} m')
         MAT_CorrectedZOS_reg[idx,:,:] = DTrendVAR1_reg - area_mean
 
     regridder.clean_weight_file()

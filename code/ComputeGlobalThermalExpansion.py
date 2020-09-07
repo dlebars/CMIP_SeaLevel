@@ -138,7 +138,7 @@ for i in range(dimMod):
     Trend_pic_coeff = pic.trend_pic(MIP, VAR, ModelList.iloc[i], order=1, 
                                     year_min=1850, year_max=2100,
                                     conv_pic_hist=conv_pic_hist, gap=gap, 
-                                    verbose=verbose)
+                                    rmv_disc=True, verbose=verbose)
     
     # Build polynomial from coefficients
     Trend_pic = xr.polyval(coord=VAR1a.time, coeffs=Trend_pic_coeff)

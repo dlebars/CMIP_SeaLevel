@@ -155,3 +155,27 @@ def remove_discontinuities(da, gap):
         for k in indpb:
             da_out[k+1:] = da[k+1:] - da[k+1] + da[k]
     return da_out
+
+# def remove_discontinuities(da, gap):
+#     '''Remove discontinuities in a time series, numpy or data array.
+#     da: The input data
+#     gap: the maximum gap allowed in the data above which the 
+#     discontinuity is removed'''
+    
+#     da_out = da.copy()
+#     if isinstance(da, xr.DataArray):
+#         # Make sure to load the data, Dask arrays do not support item assigment
+#         da_out.load()
+#         diff = da.diff('time')
+#     elif isinstance(da, np.ndarray):
+#         diff = np.array(da[1:]) - np.array(da[:-1])
+#     else:
+#         print('ERROR: Input object type not supported')
+        
+#     indpb = np.where(np.abs(diff) > gap)[0]
+#     if len(indpb) > 0:
+#         print("### Removing discontinuities at these indices: ####")
+#         print(indpb)
+#         for k in indpb:
+#             da_out[k+1:] = da[k+1:] - da[k+1] + da[k]
+#     return da_out
