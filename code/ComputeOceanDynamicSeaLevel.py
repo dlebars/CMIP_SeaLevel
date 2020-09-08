@@ -26,6 +26,8 @@ MIP = 'cmip6' # cmip5 or cmip6
 # cmip6: 'historical', 'ssp119', 'ssp126', 'ssp245', 'ssp370', 'ssp585'
 # cmip5: 'historical', 'rcp26', 'rcp45', 'rcp85'
 EXP = 'ssp585'
+trend_order = 1 # Order of the polynomial fit used to detrend the data based on
+                # the piControl simulation
 
 ref_p_min = 1986  # Included. Beginning of reference period
 ref_p_max = 2006  # Excluded. End of reference period
@@ -95,7 +97,7 @@ for i in range(len(Model)):
         
     elif MIP == 'cmip6':
         if EXP != 'historical':
-            if ModelList.Model[i] == 'MPI-ESM1-2-HR':
+            if Model[i] == 'MPI-ESM1-2-HR':
             # For this model the scenarios are done at DKRZ while piControl 
             # and historical are done at MPI-M
                 ModelList.Center[i] = 'DKRZ'
@@ -103,7 +105,7 @@ for i in range(len(Model)):
             sce_files = loc.select_cmip6_files(EXP, VAR, ModelList.iloc[i])
 
         # Read historical simulation as well
-        if (ModelList.Model[i] == 'MPI-ESM1-2-HR'):
+        if (Model[i] == 'MPI-ESM1-2-HR'):
             ModelList.Center[i] = 'MPI-M'
 
         hist_files = loc.select_cmip6_files('historical', VAR, ModelList.iloc[i])
@@ -139,23 +141,13 @@ for i in range(len(Model)):
         
     y_ds = loc.yearly_mean(ds)
     
-    if ModelList.Model[i] == 'BCC-CSM2-MR':
+    if Model[i] == 'BCC-CSM2-MR':
         y_ds = y_ds.rename({'lat':'rlat', 'lon':'rlon'})
     
     if 'latitude' and 'longitude' in y_ds.coords:
         y_ds = y_ds.rename({'latitude':'lat', 'longitude':'lon'})
     elif 'nav_lat' and 'nav_lon' in y_ds.coords:
         y_ds = y_ds.rename({'nav_lat':'lat', 'nav_lon':'lon'})
-    
-#     if len(y_ds.lat.shape) == 1:
-#         name_lat = 'lat'
-#         name_lon = 'lon'
-#     elif len(y_ds.lat.shape) == 2:
-#         name_lat = 'rlat'
-#         name_lon = 'rlon'        
-    
-#     if 'i' and 'j' in y_ds.coords:
-#         y_ds = y_ds.rename({'j':name_lat, 'i':name_lon})
     
     # Build regridder with xESMF
     try:
@@ -199,10 +191,11 @@ for i in range(len(Model)):
         # trend_zos_pic_cmip5
         conv_pic_hist = -9999
 
-    Trend_pic_coeff = pic.trend_pic(MIP, VAR, ModelList.iloc[i], order=1, 
-                                    year_min=1850, year_max=2100,
-                                    conv_pic_hist=conv_pic_hist, gap=gap, 
-                                    rmv_disc=False, verbose=verbose)
+    Trend_pic_coeff, branching_method = pic.trend_pic(
+        MIP, VAR, ModelList.iloc[i], order=trend_order, year_min=1850, 
+        year_max=2100,conv_pic_hist=conv_pic_hist, gap=gap, rmv_disc=False, 
+        verbose=verbose)
+    
     try:
         # This breaks when Trend_pic_coeff does not contain values.
         # It hapens for BCC-CSM2-MR for which polyfit does not return 
@@ -218,13 +211,8 @@ for i in range(len(Model)):
     except:
         print('!!! WARNING: Detrending from piControl for this model does not'+ 
               ' work !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
+        branching_method = 'no_detrending'
         Trend_pic = xr.DataArray(np.zeros(len(years_s)), coords=[years_s], dims=["time"])
-    
-#     Trend_pic = Trend_pic.rename({Trend_pic.dims[1]:name_lat, 
-#                               Trend_pic.dims[2]:name_lon})
-
-#     if 'i' and 'j' in Trend_pic.coords:
-#         Trend_pic = Trend_pic.rename({'j':name_lat, 'i':name_lon})
     
     MAT_CorrectedZOS_reg = np.zeros([len(years_s), len(mask_ds.lat), len(mask_ds.lon)])
     
@@ -271,6 +259,8 @@ for i in range(len(Model)):
     MAT_CorrectedZOS_reg = MAT_CorrectedZOS_reg.expand_dims({'model': [Model[i]]},0)
     MAT_CorrectedZOS_reg.attrs['units'] = 'cm'
     MAT_CorrectedZOS_reg.attrs['regridding_method'] = f'xESMF package with {reg_method}'
+    MAT_CorrectedZOS_reg.attrs['branching_method'] = branching_method
+    MAT_CorrectedZOS_reg.attrs['detrending_order'] = trend_order
     
     MAT_OUT_ds = xr.Dataset({f'CorrectedReggrided_{VAR}': MAT_CorrectedZOS_reg})
 

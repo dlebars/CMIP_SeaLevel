@@ -63,9 +63,11 @@ def trend_pic(MIP, VAR, ModelList, order, year_min, year_max, conv_pic_hist,
     # Require that at least 90% of the years are available
     if overlap_years >= tot_year*0.9:
         print('Using branching time')
+        branching_method = 'unsing_branching_time'
         y_ds = y_ds.assign_coords(time=(y_ds.time + conv_pic_hist))
     else:
         print('Not using branching time for piControl')
+        branching_method = 'not_unsing_branching_time'
         # Assumes piControl simulation starts in 1850
         y_ds = y_ds.assign_coords(time=(y_ds.time - y_ds.time[0] + 1850.5))
         
@@ -75,7 +77,7 @@ def trend_pic(MIP, VAR, ModelList, order, year_min, year_max, conv_pic_hist,
         VAR1 = loc.remove_discontinuities(VAR1, gap)
     VAR1_coeff = VAR1.polyfit(dim='time',deg=order)
     
-    return VAR1_coeff.polyfit_coefficients
+    return VAR1_coeff.polyfit_coefficients, branching_method
 
 ### Keep just while testing, remove after
 def trend_zos_pic_cmip5(ModelList, order, year_min, year_max, conv_pic_hist, 
