@@ -135,10 +135,9 @@ for i in range(dimMod):
         # trend_zos_pic_cmip5
         conv_pic_hist = -9999
         
-    Trend_pic_coeff = pic.trend_pic(MIP, VAR, ModelList.iloc[i], order=1, 
-                                    year_min=1850, year_max=2100,
-                                    conv_pic_hist=conv_pic_hist, gap=gap, 
-                                    rmv_disc=True, verbose=verbose)
+    Trend_pic_coeff, branching_method = pic.trend_pic(
+        MIP, VAR, ModelList.iloc[i], order=1, year_min=1850, year_max=2100,
+        conv_pic_hist=conv_pic_hist, gap=gap, rmv_disc=True, verbose=verbose)
     
     # Build polynomial from coefficients
     Trend_pic = xr.polyval(coord=VAR1a.time, coeffs=Trend_pic_coeff)
