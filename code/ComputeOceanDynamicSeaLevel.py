@@ -32,11 +32,13 @@ trend_order = 1 # Order of the polynomial fit used to detrend the data based on
 ref_p_min = 1986  # Included. Beginning of reference period
 ref_p_max = 2006  # Excluded. End of reference period
 
+year_start_sce = {'cmip5': 2006, 'cmip6': 2015} 
+
 if EXP == 'historical':
     year_min = 1900 # Could start from 1850
-    year_max = 2006
+    year_max = year_start_sce[MIP]-1
 else:
-    year_min = 2098 #2006
+    year_min = year_start_sce[MIP]
     year_max = 2100  # 2101 works for CMIP5, not for some models of CMIP6
 
 gap = 0.02 # Maximum gap authorized (in meters) when removing discontinuities
@@ -152,11 +154,13 @@ for i in range(len(Model)):
     # Build regridder with xESMF
     try:
         reg_method = 'bilinear'
-        regridder = xe.Regridder(y_ds, ds_out, reg_method, periodic=True)
+        regridder = xe.Regridder(y_ds, ds_out, reg_method, periodic=True,
+                                filename=f'{reg_method}_{Model[i]}_{VAR}_{EXP}')
     except:
         try:
             reg_method = 'nearest_s2d'
-            regridder = xe.Regridder(y_ds, ds_out, reg_method, periodic=True)
+            regridder = xe.Regridder(y_ds, ds_out, reg_method, periodic=True,
+                                    filename=f'{reg_method}_{Model[i]}_{VAR}_{EXP}')
         except:
             print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
             print(f'Regridding did not work for {Model[i]}')
