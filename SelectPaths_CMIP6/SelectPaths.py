@@ -110,7 +110,7 @@ depth = depth_path(CMIP6_path)
 
 for var in ['zostoga', 'zos']:
     var = [var]
-    for sce in ['ssp119', 'ssp126', 'ssp245', 'ssp370', 'ssp585']:
+    for sce in ['historical','ssp119', 'ssp126', 'ssp245', 'ssp370', 'ssp585']:
         print('####### Working on '+str(var)+', '+str(sce)+'#################')
         exp_id = ['historical', 'piControl', sce]
         ind_mods = select_models_intersection(CMIP6_path, exp_id, var)
@@ -131,8 +131,12 @@ for var in ['zostoga', 'zos']:
         print('Final info to be saved as csv file:')
         print(final_info_df)
         if (len(var) == 1) & (len(exp_id) == 3):
-            file_name = (f'AvailableExperiments_{var[0]}_{exp_id[0]}_{exp_id[1]}'+
-                         f'_{exp_id[2]}.csv')
+            if sce == 'historical':
+                file_name = (f'AvailableExperiments_{var[0]}_{exp_id[0]}_'+
+                             f'{exp_id[1]}.csv')
+            else:
+                file_name = (f'AvailableExperiments_{var[0]}_{exp_id[0]}_'+
+                             f'{exp_id[1]}_{exp_id[2]}.csv')
             final_info_df.to_csv(file_name, index=False)
         else:
             print('ERROR: Output file name not compatible with length of var'+
