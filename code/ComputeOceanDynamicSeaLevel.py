@@ -46,11 +46,6 @@ gap = 0.02 # Maximum gap authorized (in meters) when removing discontinuities
 dir_outputs = '../outputs/'
 dir_inputs = '../inputs/'
 
-if EXP == 'historical':
-    EXPm = 'rcp85'
-else:
-    EXPm = EXP
-
 # Select the file containing the model list to analyse
 if MIP == 'cmip5':
     if EXP == 'historical':
@@ -62,13 +57,13 @@ if MIP == 'cmip5':
                             delim_whitespace=True, names=col_names,
                             comment='#')
 elif MIP == 'cmip6':
-    if EXP == 'historical':
-        EXPm = 'ssp585'
-    else:
-        EXPm = EXP
     dir_SelectPath = '../SelectPaths_CMIP6/'
-    ModelList = pd.read_csv(f'{dir_SelectPath}AvailableExperiments_{VAR}'+
-                            f'_historical_piControl_{EXPm}.csv')
+    if EXP == 'historical':
+        ModelList = pd.read_csv(f'{dir_SelectPath}AvailableExperiments_{VAR}'+
+                                f'_historical_piControl.csv')
+    else:
+        ModelList = pd.read_csv(f'{dir_SelectPath}AvailableExperiments_{VAR}'+
+                                f'_historical_piControl_{EXP}.csv')
 
 Model = ModelList.Model
 
