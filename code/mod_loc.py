@@ -21,12 +21,10 @@ def select_cmip5_files(EXP, VAR, ModelList):
     p = Path(data_dir+ModelList.Center+'/'+ModelList.Model+
              '/'+EXP+'/'+'mon')
     files = list(p.glob(path_string))
-    print(files)
     # Select the last version of data: 
     vs = []
     for k in range(len(files)):
         part = files[k].parts
-        print(part)
         vs.append(part[len(part)-path_nb])
     vs.sort()
     if EXP == 'rcp60':

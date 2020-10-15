@@ -21,11 +21,11 @@ import mod_trend_picontrol as pic
 
 verbose = True
 VAR = 'zos'
-MIP = 'cmip6' # cmip5 or cmip6
+MIP = 'cmip5' # cmip5 or cmip6
 # EXP available:
 # cmip6: 'historical', 'ssp119', 'ssp126', 'ssp245', 'ssp370', 'ssp585'
-# cmip5: 'historical', 'rcp26', 'rcp45', 'rcp85'
-EXP = 'ssp585'
+# cmip5: 'historical', 'rcp26', 'rcp45', 'rcp60','rcp85'
+EXP = 'rcp60'
 trend_order = 1 # Order of the polynomial fit used to detrend the data based on
                 # the piControl simulation
 
