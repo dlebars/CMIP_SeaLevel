@@ -10,17 +10,29 @@ from scipy import signal
 def select_cmip5_files(EXP, VAR, ModelList):
     '''Return a list of paths to the CMIP5 data files'''
     
-    data_dir  = '/nobackup/users/bars/synda/cmip5/output1/'
+    if EXP == 'rcp60':
+        data_dir = '/nobackup_1/users/bars/synda_cmip6/cmip5/output1/'
+        path_string = f'*/*/*/*/*{VAR}*.nc'
+        path_nb = 2
+    else:
+        data_dir = '/nobackup/users/bars/synda/cmip5/output1/'
+        path_string = f'*/*/*/*/{VAR}/*{VAR}*.nc'
+        path_nb = 3
     p = Path(data_dir+ModelList.Center+'/'+ModelList.Model+
-                 '/'+EXP+'/'+'mon')
-    files = list(p.glob('*/*/*/*/'+VAR+'/*'+VAR+'*.nc'))
+             '/'+EXP+'/'+'mon')
+    files = list(p.glob(path_string))
+    print(files)
     # Select the last version of data: 
     vs = []
     for k in range(len(files)):
         part = files[k].parts
-        vs.append(part[len(part)-3])
+        print(part)
+        vs.append(part[len(part)-path_nb])
     vs.sort()
-    files = sorted(p.glob('*/*/*/'+vs[-1]+'/'+VAR+'/*'+VAR+'*.nc'))
+    if EXP == 'rcp60':
+        files = sorted(p.glob(f'*/*/*/{vs[-1]}/*{VAR}*.nc'))
+    else:
+        files = sorted(p.glob(f'*/*/*/{vs[-1]}/{VAR}/*{VAR}*.nc'))
     return files
 
 def select_cmip6_files(EXP, VAR, ModelList):

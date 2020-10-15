@@ -17,8 +17,8 @@ verbose = True # Print additional information
 VAR = 'zostoga'
 # EXP available:
 # cmip6: 'ssp119', 'ssp126', 'ssp245', 'ssp370', 'ssp585'
-# cmip5: 'rcp26', 'rcp45', 'rcp85'
-EXP = 'rcp85'
+# cmip5: 'rcp26', 'rcp45', 'rcp60','rcp85'
+EXP = 'rcp60'
 
 # Select the mip that corresponds to the scenario
 MIP_dic = {'ssp119':'cmip6',
@@ -27,7 +27,8 @@ MIP_dic = {'ssp119':'cmip6',
            'ssp370':'cmip6',
            'ssp585':'cmip6', 
            'rcp26':'cmip5', 
-           'rcp45':'cmip5', 
+           'rcp45':'cmip5',
+           'rcp60':'cmip5',
            'rcp85':'cmip5'}
 MIP = MIP_dic[EXP]
 
