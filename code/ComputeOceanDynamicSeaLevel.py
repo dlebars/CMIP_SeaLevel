@@ -6,6 +6,11 @@
 # - Regrid all fields to a common 1x1 lat/lon grid
 # - Export the result as a NetCDF file
 # Equivalent to the former PrepThermalExpMapsTS.ncl script
+#
+# Run time can take a while because of the interpollation, around 10 hours for
+# a scenario with 20 model
+# On linux use nohup, and python -u to avoid output buffering :
+# nohup python -u ComputeOceanDynamicSeaLevel.py > out_rcp60.txt &
 ###############################################################################
 
 from datetime import datetime
@@ -25,7 +30,7 @@ MIP = 'cmip5' # cmip5 or cmip6
 # EXP available:
 # cmip6: 'historical', 'ssp119', 'ssp126', 'ssp245', 'ssp370', 'ssp585'
 # cmip5: 'historical', 'rcp26', 'rcp45', 'rcp60','rcp85'
-EXP = 'rcp60'
+EXP = 'rcp26'
 trend_order = 1 # Order of the polynomial fit used to detrend the data based on
                 # the piControl simulation
 

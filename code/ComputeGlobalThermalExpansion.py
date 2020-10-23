@@ -18,7 +18,7 @@ VAR = 'zostoga'
 # EXP available:
 # cmip6: 'ssp119', 'ssp126', 'ssp245', 'ssp370', 'ssp585'
 # cmip5: 'rcp26', 'rcp45', 'rcp60','rcp85'
-EXP = 'rcp60'
+EXP = 'rcp45'
 
 # Select the mip that corresponds to the scenario
 MIP_dic = {'ssp119':'cmip6',
@@ -33,7 +33,7 @@ MIP_dic = {'ssp119':'cmip6',
 MIP = MIP_dic[EXP]
 
 ref_p_min = 1986
-ref_p_max = 2005 #TODO excluded so increase to 2006?
+ref_p_max = 2006
 
 year_min = 1986  # Included
 year_max = 2100  # Included
