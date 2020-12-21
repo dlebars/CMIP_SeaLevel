@@ -71,19 +71,27 @@ def yearly_mean(ds):
     
     return y_ds
 
-def rotate_longitude(ds):
-    '''Rotate the longitude of an xarray dataset from [0,360] to [-180,180]'''
+# def rotate_longitude(ds):
+#     '''Rotate the longitude of an xarray dataset from [0,360] to [-180,180]'''
     
-    if 'lon' in ds.dims:
-        lon = 'lon'
-    elif 'longitude' in ds.dims:
-        lon = 'longitude'
-    else:
-        print('Longitude not found in dimensions')
+#     if 'lon' in ds.dims:
+#         lon = 'lon'
+#     elif 'longitude' in ds.dims:
+#         lon = 'longitude'
+#     else:
+#         print('Longitude not found in dimensions')
     
-    ds = ds.roll({lon:180}, roll_coords=True)
-    ds[lon] = np.where(ds[lon]>180, ds[lon]-360, ds[lon])
+#     ds = ds.roll({lon:180}, roll_coords=True)
+#     ds[lon] = np.where(ds[lon]>180, ds[lon]-360, ds[lon])
+#     return ds
+
+def rotate_longitude(ds, name_lon):
+
+    ds = ds.assign_coords({name_lon:(((ds[name_lon] + 180 ) % 360) - 180)})
+    ds = ds.sortby(ds[name_lon])
+
     return ds
+
 
 def export2netcdf(ds, name_output, script_name):
     '''Export a dataset as netcdf. 
