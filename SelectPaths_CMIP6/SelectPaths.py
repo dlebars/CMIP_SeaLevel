@@ -55,7 +55,7 @@ def select_models_intersection(data_dir, experiment_id, var):
         experiment_id = [experiment_id]
     list_com = list(itertools.product(experiment_id, var))
     for idx, val in enumerate(list_com):
-        paths = select_paths(data_dir, val[0], val[1], True)
+        paths = select_paths(data_dir, val[0], val[1], False)
         ind_mods = select_ind_mod(paths, depth)
         if idx > 0:
             ind_mods = ind_mods.intersection(ind_mods_prev)
@@ -79,10 +79,21 @@ def make_final_info_df(info_df, ind_mods):
     for i in range(nb_mod):
         info_sel_df = info_df[info_df['Model'] == ind_mods[i]]
         print(info_sel_df)
-        if len(set(info_sel_df['Ensemble'])) != 1:
+        if len(set(info_sel_df['Ensemble'])) > 1:
+            print('More than one ensemble available for '+ind_mods[i])
+        if 'r1i1p1f1' in info_sel_df['Ensemble'].values:
+            Ensemble = 'r1i1p1f1'
+        elif 'r1i1p1f2' in info_sel_df['Ensemble'].values:
+            Ensemble = 'r1i1p1f2'
+        elif 'r1i1p1f3' in info_sel_df['Ensemble'].values:
+            Ensemble = 'r1i1p1f3'
+        elif 'r1i1p2f1' in info_sel_df['Ensemble'].values:
+            Ensemble = 'r1i1p2f1'
+        else:
             print(set(info_sel_df['Ensemble']))
-            sys.exit('ERROR: More/less than 1 ensemble name for '+ind_mods[i]
-                    + 'see list above')
+            sys.exit('ERROR: Standard ensemble not available see list above')
+        print(f'Using ensemble {Ensemble}')
+
         if len(set(info_sel_df['Grid'])) > 1:
             print('More than one grid available for '+ind_mods[i])
             print(set(info_sel_df['Grid']))
@@ -100,7 +111,7 @@ def make_final_info_df(info_df, ind_mods):
         else:
             Version = list(All_Versions)[0]
         final_df.loc[i] = [info_sel_df['Center'].iloc[0], ind_mods[i], 
-                           info_sel_df['Ensemble'].iloc[0], Grid, Version]
+                           Ensemble, Grid, Version]
     return final_df
     
 ###############################################################################
@@ -117,7 +128,7 @@ for var in ['zostoga', 'zos']:
         print('Models available for this combination:')
         print(ind_mods)
         for idx, ei in enumerate(exp_id):
-            list_all_paths = select_paths(CMIP6_path, ei, var[0], ens1=True)
+            list_all_paths = select_paths(CMIP6_path, ei, var[0], ens1=False)
             #print('\n'.join(list_all_paths))
             info_df = make_info_df(list_all_paths, depth)
             #print('Info before final selection:')
