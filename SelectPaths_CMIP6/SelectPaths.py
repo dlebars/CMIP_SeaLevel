@@ -89,6 +89,8 @@ def make_final_info_df(info_df, ind_mods):
             Ensemble = 'r1i1p1f3'
         elif 'r1i1p2f1' in info_sel_df['Ensemble'].values:
             Ensemble = 'r1i1p2f1'
+        elif 'r4i1p1f1' in info_sel_df['Ensemble'].values:
+            Ensemble = 'r4i1p1f1'
         else:
             print(set(info_sel_df['Ensemble']))
             sys.exit('ERROR: Standard ensemble not available see list above')
