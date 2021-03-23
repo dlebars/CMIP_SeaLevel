@@ -95,14 +95,22 @@ def make_final_info_df(info_df, ind_mods):
             print(set(info_sel_df['Ensemble']))
             sys.exit('ERROR: Standard ensemble not available see list above')
         print(f'Using ensemble {Ensemble}')
+        info_sel_df = info_sel_df[info_sel_df['Ensemble'] == Ensemble]
 
         if len(set(info_sel_df['Grid'])) > 1:
             print('More than one grid available for '+ind_mods[i])
             print(set(info_sel_df['Grid']))
-            print('Using gr as default')
-            Grid = 'gr'
+            print('Using gr as default or gr1 as default')
+            if 'gr' in info_sel_df['Grid'].values:
+                Grid = 'gr'
+            elif 'gr1' in info_sel_df['Grid'].values:
+                Grid = 'gr1'
+            else:
+                sys.exit('ERROR: Standard grid not available see list above')
         else:
             Grid = info_sel_df['Grid'].iloc[0]
+        info_sel_df = info_sel_df[info_sel_df['Grid'] == Grid]
+            
         All_Versions = set(info_sel_df['Version'])
         if len(All_Versions) > 1:
             print('More than one version available for '+ind_mods[i])
@@ -124,11 +132,13 @@ depth = depth_path(CMIP6_path)
 for var in ['zostoga', 'zos']:
     var = [var]
     for sce in ['historical','ssp119', 'ssp126', 'ssp245', 'ssp370', 'ssp585']:
-        print('####### Working on '+str(var)+', '+str(sce)+'#################')
-        exp_id = ['historical', 'piControl', sce]
+        print('####### Working on '+str(var)+', '+str(sce)+'#################'+
+             '###############################################################')
+        exp_id = [sce, 'historical', 'piControl']
         ind_mods = select_models_intersection(CMIP6_path, exp_id, var)
         print('Models available for this combination:')
         print(ind_mods)
+        
         for idx, ei in enumerate(exp_id):
             list_all_paths = select_paths(CMIP6_path, ei, var[0], ens1=False)
             #print('\n'.join(list_all_paths))
@@ -141,8 +151,12 @@ for var in ['zostoga', 'zos']:
             else:
                 v_info_df = make_final_info_df(info_df, ind_mods)
                 final_info_df[ei+'_Version'] = v_info_df.Version
+        
+        final_info_df.sort_values(by='Model', inplace=True)
+        final_info_df.reset_index(drop=True, inplace=True)
         print('Final info to be saved as csv file:')
         print(final_info_df)
+        
         if (len(var) == 1) & (len(exp_id) == 3):
             if sce == 'historical':
                 file_name = (f'AvailableExperiments_{var[0]}_{exp_id[0]}_'+
