@@ -44,7 +44,7 @@ def select_ind_mod(list_paths, depth):
         list_mod.append(st[depth+2])
     return set(list_mod)
 
-def select_models_intersection(data_dir, experiment_id, var):
+def select_models_intersection(data_dir, experiment_id, var, ens1):
     '''Select the models that have available data for the input variable(s) and
     experiments'''
     depth = depth_path(data_dir)
@@ -55,7 +55,7 @@ def select_models_intersection(data_dir, experiment_id, var):
         experiment_id = [experiment_id]
     list_com = list(itertools.product(experiment_id, var))
     for idx, val in enumerate(list_com):
-        paths = select_paths(data_dir, val[0], val[1], False)
+        paths = select_paths(data_dir, val[0], val[1], ens1)
         ind_mods = select_ind_mod(paths, depth)
         if idx > 0:
             ind_mods = ind_mods.intersection(ind_mods_prev)
@@ -128,6 +128,7 @@ def make_final_info_df(info_df, ind_mods):
 
 CMIP6_path = '/nobackup_1/users/bars/synda_cmip6/CMIP6/'
 depth = depth_path(CMIP6_path)
+ens1 = True # True to select only r1i1p1f1, False otherwise
 
 for var in ['zostoga', 'zos']:
     var = [var]
@@ -135,12 +136,12 @@ for var in ['zostoga', 'zos']:
         print('####### Working on '+str(var)+', '+str(sce)+'#################'+
              '###############################################################')
         exp_id = [sce, 'historical', 'piControl']
-        ind_mods = select_models_intersection(CMIP6_path, exp_id, var)
+        ind_mods = select_models_intersection(CMIP6_path, exp_id, var, ens1)
         print('Models available for this combination:')
         print(ind_mods)
         
         for idx, ei in enumerate(exp_id):
-            list_all_paths = select_paths(CMIP6_path, ei, var[0], ens1=False)
+            list_all_paths = select_paths(CMIP6_path, ei, var[0], ens1)
             #print('\n'.join(list_all_paths))
             info_df = make_info_df(list_all_paths, depth)
             #print('Info before final selection:')

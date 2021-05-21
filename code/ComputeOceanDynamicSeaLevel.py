@@ -68,7 +68,7 @@ elif MIP == 'cmip6':
                                 f'_historical_piControl.csv')
     else:
         ModelList = pd.read_csv(f'{dir_SelectPath}AvailableExperiments_{VAR}'+
-                                f'_historical_piControl_{EXP}.csv')
+                                f'_{EXP}_historical_piControl.csv')
 
 Model = ModelList.Model
 

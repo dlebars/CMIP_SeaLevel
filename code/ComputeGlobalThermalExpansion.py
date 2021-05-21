@@ -18,7 +18,7 @@ VAR = 'zostoga'
 # EXP available:
 # cmip6: 'ssp119', 'ssp126', 'ssp245', 'ssp370', 'ssp585'
 # cmip5: 'rcp26', 'rcp45', 'rcp60','rcp85'
-EXP = 'rcp45'
+EXP = 'ssp585'
 
 # Select the mip that corresponds to the scenario
 MIP_dic = {'ssp119':'cmip6',
@@ -52,7 +52,7 @@ if MIP == 'cmip5':
 elif MIP == 'cmip6':
     dir_SelectPath = '../SelectPaths_CMIP6/'
     ModelList = pd.read_csv(f'{dir_SelectPath}AvailableExperiments_{VAR}'+
-                            f'_historical_piControl_{EXP}.csv')
+                            f'_{EXP}_historical_piControl.csv')
 
 dimMod = len(ModelList.Model)
 time_all = np.arange(year_min, year_max ) + 0.5
