@@ -43,6 +43,21 @@ gap = 0.02 # Maximum gap authorized (in meters) when removing discontinuities
 dir_outputs = '../outputs/'
 dir_inputs = '../inputs/'
 
+def open_files(file_names):
+    try:
+        ds = xr.open_mfdataset(file_names, combine='by_coords', use_cftime=True)
+    except:
+        print(f'Open by_coords did not work for:{file_names}')
+        print('Using nested option instead')
+        try:
+            ds = xr.open_mfdataset(hist_files, combine='nested', 
+                                   concat_dim='time', 
+                                   use_cftime=True)
+        except:
+            print('ERROR: Nested option did not work either')
+
+    return ds
+
 # Select the file containing the model list to analyse
 if MIP == 'cmip5':
     col_names = ['Center','Model']
@@ -96,18 +111,8 @@ for i in range(dimMod):
     else:
         sys.exit('ERROR: No file available at that location')
 
-    # Open files
-    try:
-        hist_ds = xr.open_mfdataset(hist_files, combine='by_coords', use_cftime=True)
-        sce_ds = xr.open_mfdataset(sce_files, combine='by_coords', use_cftime=True)
-    except:
-        print('Open by_coords did not work for:'+ ModelList.Center[i]+
-              '/'+ModelList.Model[i]+'/'+EXP)
-        print('Using nested option instead')
-        hist_ds = xr.open_mfdataset(hist_files, combine='nested', concat_dim='time', 
-                               use_cftime=True)
-        sce_ds = xr.open_mfdataset(sce_files, combine='nested', concat_dim='time', 
-                               use_cftime=True)
+    hist_ds = open_files(hist_files)
+    sce_ds = open_files(sce_files)
     
     all_ds = xr.concat([hist_ds,sce_ds],'time')
         
