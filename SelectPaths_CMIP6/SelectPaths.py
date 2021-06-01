@@ -64,7 +64,7 @@ def select_models_intersection(data_dir, experiment_id, var, ens1):
 
 def make_info_df(list_path, depth):
     '''Read list of path to data and store info into pandas dataframe '''
-    interm_df = pd.DataFrame(columns=['Center', 'Model', 'Ensemble', 'Grid', 'Version'])
+    interm_df = pd.DataFrame(columns=['Center', 'Model', 'Variant', 'Grid', 'Version'])
     for i in range(len(list_path)):
         st = list_path[i].split('/')
         st = list(filter(None, st)) # Remove empty '' strings
@@ -75,27 +75,27 @@ def make_final_info_df(info_df, ind_mods):
     '''Reads dataframe output from function make_info_df and select the final
     model grid and version to use'''
     nb_mod = len(ind_mods)
-    final_df = pd.DataFrame(columns=['Center', 'Model', 'Ensemble', 'Grid', 'Version'])
+    final_df = pd.DataFrame(columns=['Center', 'Model', 'Variant', 'Grid', 'Version'])
     for i in range(nb_mod):
         info_sel_df = info_df[info_df['Model'] == ind_mods[i]]
         print(info_sel_df)
-        if len(set(info_sel_df['Ensemble'])) > 1:
-            print('More than one ensemble available for '+ind_mods[i])
-        if 'r1i1p1f1' in info_sel_df['Ensemble'].values:
-            Ensemble = 'r1i1p1f1'
-        elif 'r1i1p1f2' in info_sel_df['Ensemble'].values:
-            Ensemble = 'r1i1p1f2'
-        elif 'r1i1p1f3' in info_sel_df['Ensemble'].values:
-            Ensemble = 'r1i1p1f3'
-        elif 'r1i1p2f1' in info_sel_df['Ensemble'].values:
-            Ensemble = 'r1i1p2f1'
-        elif 'r4i1p1f1' in info_sel_df['Ensemble'].values:
-            Ensemble = 'r4i1p1f1'
+        if len(set(info_sel_df['Variant'])) > 1:
+            print('More than one variant available for '+ind_mods[i])
+        if 'r1i1p1f1' in info_sel_df['Variant'].values:
+            Variant = 'r1i1p1f1'
+        elif 'r1i1p1f2' in info_sel_df['Variant'].values:
+            Variant = 'r1i1p1f2'
+        elif 'r1i1p1f3' in info_sel_df['Variant'].values:
+            Variant = 'r1i1p1f3'
+        elif 'r1i1p2f1' in info_sel_df['Variant'].values:
+            Variant = 'r1i1p2f1'
+        elif 'r4i1p1f1' in info_sel_df['Variant'].values:
+            Variant = 'r4i1p1f1'
         else:
-            print(set(info_sel_df['Ensemble']))
-            sys.exit('ERROR: Standard ensemble not available see list above')
-        print(f'Using ensemble {Ensemble}')
-        info_sel_df = info_sel_df[info_sel_df['Ensemble'] == Ensemble]
+            print(set(info_sel_df['Variant']))
+            sys.exit('ERROR: Standard variant not available see list above')
+        print(f'Using variant {Variant}')
+        info_sel_df = info_sel_df[info_sel_df['Variant'] == Variant]
 
         if len(set(info_sel_df['Grid'])) > 1:
             print('More than one grid available for '+ind_mods[i])
@@ -121,14 +121,14 @@ def make_final_info_df(info_df, ind_mods):
         else:
             Version = list(All_Versions)[0]
         final_df.loc[i] = [info_sel_df['Center'].iloc[0], ind_mods[i], 
-                           Ensemble, Grid, Version]
+                           Variant, Grid, Version]
     return final_df
     
 ###############################################################################
 
 CMIP6_path = '/nobackup_1/users/bars/synda_cmip6/CMIP6/'
 depth = depth_path(CMIP6_path)
-ens1 = True # True to select only r1i1p1f1, False otherwise
+ens = False # True to select only r1i1p1f1, False otherwise
 
 for var in ['zostoga', 'zos']:
     var = [var]
@@ -148,9 +148,11 @@ for var in ['zostoga', 'zos']:
             #print(info_df)
             if idx == 0:
                 final_info_df = make_final_info_df(info_df, ind_mods)
-                final_info_df = final_info_df.rename(columns={'Version':ei+'_Version'})
+                final_info_df = final_info_df.rename(
+                    columns={'Version':ei+'_Version', 'Variant':ei+'_Variant'})
             else:
                 v_info_df = make_final_info_df(info_df, ind_mods)
+                final_info_df[ei+'_Variant'] = v_info_df.Variant
                 final_info_df[ei+'_Version'] = v_info_df.Version
         
         final_info_df.sort_values(by='Model', inplace=True)
