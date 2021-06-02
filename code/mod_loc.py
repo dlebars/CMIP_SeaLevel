@@ -31,6 +31,7 @@ def select_cmip5_files(EXP, VAR, ModelList):
         files = sorted(p.glob(f'*/*/*/{vs[-1]}/*{VAR}*.nc'))
     else:
         files = sorted(p.glob(f'*/*/*/{vs[-1]}/{VAR}/*{VAR}*.nc'))
+        
     return files
 
 def select_cmip6_files(EXP, VAR, ModelList):
@@ -46,12 +47,13 @@ def select_cmip6_files(EXP, VAR, ModelList):
     
     data_dir  = '/nobackup_1/users/bars/synda_cmip6/CMIP6/'
     data_path = (data_dir+MIP[EXP]+'/'+ModelList.Center+'/'+ModelList.Model+
-                '/'+EXP+'/'+ModelList.Ensemble+'/Omon/'+VAR+'/'+
+                '/'+EXP+'/'+ModelList[EXP+'_Variant']+'/Omon/'+VAR+'/'+
                 ModelList.Grid+'/'+ModelList[EXP+'_Version'])
     print('Looking for files there:')
     print(data_path)
     p = Path(data_path)
     all_files = sorted(p.glob('*'+VAR+'*.nc'))
+    
     return all_files
 
 def yearly_mean(ds):
@@ -152,12 +154,38 @@ def remove_discontinuities(da, gap):
         print('ERROR: Input object type not supported')
         
     indpb = np.where(np.abs(diff) > gap)[0]
+    
+    if len(indpb) > 10:
+        raise ValueError('Error', 'Too many many discontinuities, not using this model')
+    
     if len(indpb) > 0:
         print("### Removing discontinuities at these indices: ####")
         print(indpb)
         for k in indpb:
             da_out[k+1:] = da[k+1:] - da[k+1] + da[k]
+    
     return da_out
+
+def start_end_ref_dates(MIP, EXP):
+    
+    # This is the reference period of AR5. It can easily be changed later 
+    # during the data analysis. 
+    ref_p_min = 1986  # Included. Beginning of reference period
+    ref_p_max = 2006  # Excluded. End of reference period
+
+    year_start_sce = {'cmip5': 2006, 'cmip6': 2015}
+    # year_end_sce is excluded.
+    # 2101 works for CMIP5, not for some models of CMIP6
+    year_end_sce = {'cmip5': 2101, 'cmip6': 2100}
+
+    if EXP == 'historical':
+        year_min = 1900 # Could start from 1850
+        year_max = year_start_sce[MIP]
+    else:
+        year_min = year_start_sce[MIP]
+        year_max = year_end_sce[MIP]
+    
+    return year_min, year_max, ref_p_min, ref_p_max
 
 # def remove_discontinuities(da, gap):
 #     '''Remove discontinuities in a time series, numpy or data array.

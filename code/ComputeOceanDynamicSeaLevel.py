@@ -32,21 +32,11 @@ MIP = 'cmip5' # cmip5 or cmip6
 # cmip5: 'historical', 'rcp26', 'rcp45', 'rcp60','rcp85'
 EXP = 'rcp26'
 trend_order = 1 # Order of the polynomial fit used to detrend the data based on
-                # the piControl simulation
+                # the piControl simulatio
 
-ref_p_min = 1986  # Included. Beginning of reference period
-ref_p_max = 2006  # Excluded. End of reference period
-
-year_start_sce = {'cmip5': 2006, 'cmip6': 2015} 
-
-if EXP == 'historical':
-    year_min = 1900 # Could start from 1850
-    year_max = year_start_sce[MIP]-1
-else:
-    year_min = year_start_sce[MIP]
-    year_max = 2100  # 2101 works for CMIP5, not for some models of CMIP6
-
-gap = 0.02 # Maximum gap authorized (in meters) when removing discontinuities
+year_min, year_max, ref_p_min, ref_p_max = loc.start_end_ref_dates(MIP, EXP)
+print(f'Generating a file for this period: {year_min}-{year_max-1}, including {year_max-1}')
+print(f'using this reference period: {ref_p_min}-{ref_p_max-1}, including {ref_p_max-1}')
 
 dir_outputs = '../outputs/'
 dir_inputs = '../inputs/'
@@ -197,7 +187,7 @@ for i in range(len(Model)):
 
     Trend_pic_coeff, branching_method = pic.trend_pic(
         MIP, VAR, ModelList.iloc[i], order=trend_order, year_min=1850, 
-        year_max=2100,conv_pic_hist=conv_pic_hist, gap=gap, rmv_disc=False, 
+        year_max=2100,conv_pic_hist=conv_pic_hist, gap=None, rmv_disc=False, 
         verbose=verbose)
     
     try:
@@ -273,7 +263,7 @@ for i in range(len(Model)):
     MAT_OUT_ds.attrs['creation_date'] = datetime.now().strftime('%Y-%m-%d %H:%M')
     MAT_OUT_ds.attrs['emission_scenario'] = EXP
 
-    NameOutput = f'{dir_outputs}{MIP}_{VAR}_{EXP}_{Model[i]}_{year_min}_{year_max}.nc'
+    NameOutput = f'{dir_outputs}{MIP}_{VAR}_{EXP}_{Model[i]}_{year_min}_{year_max-1}.nc'
     if os.path.isfile(NameOutput):
         os.remove(NameOutput)
     MAT_OUT_ds.to_netcdf(NameOutput)

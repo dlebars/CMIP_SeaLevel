@@ -33,7 +33,7 @@ def info_branching(ds_attrs):
         
 def trend_pic(MIP, VAR, ModelList, order, year_min, year_max, conv_pic_hist, 
               gap, rmv_disc, verbose=False):
-    '''Compute zos trend over the pre-industrial control model simulations.
+    '''Compute zos or zostoga trend over the pre-industrial control model simulations.
     Use rmv_disc=True to remove discontinuities in time. Only works for time 
     series (zostoga) not for 3D data (zos)'''
     
@@ -53,7 +53,7 @@ def trend_pic(MIP, VAR, ModelList, order, year_min, year_max, conv_pic_hist,
 
     y_ds = loc.yearly_mean(ds)
     
-    if ModelList.Model == 'BCC-CSM2-MR':
+    if ModelList.Model=='BCC-CSM2-MR' and VAR=='zos':
         y_ds = y_ds.rename({'lat':'rlat', 'lon':'rlon'})
     
     new_year = np.array(y_ds.time) + conv_pic_hist

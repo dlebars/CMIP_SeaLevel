@@ -15,33 +15,22 @@ import mod_trend_picontrol as pic
 
 verbose = True # Print additional information
 VAR = 'zostoga'
+MIP = 'cmip6'
 # EXP available:
 # cmip6: 'ssp119', 'ssp126', 'ssp245', 'ssp370', 'ssp585'
 # cmip5: 'rcp26', 'rcp45', 'rcp60','rcp85'
-EXP = 'ssp585'
+EXP = 'historical'
+dir_outputs = '../outputs/'
+dir_inputs = '../inputs/'
 
-# Select the mip that corresponds to the scenario
-MIP_dic = {'ssp119':'cmip6',
-           'ssp126':'cmip6',
-           'ssp245':'cmip6',
-           'ssp370':'cmip6',
-           'ssp585':'cmip6', 
-           'rcp26':'cmip5', 
-           'rcp45':'cmip5',
-           'rcp60':'cmip5',
-           'rcp85':'cmip5'}
-MIP = MIP_dic[EXP]
-
-ref_p_min = 1986
-ref_p_max = 2006
-
-year_min = 1986  # Included
-year_max = 2100  # Included
+year_min, year_max, ref_p_min, ref_p_max = loc.start_end_ref_dates(MIP, EXP)
+print(f'Generating a file for this period: {year_min}-{year_max-1}, including {year_max-1}')
+print(f'using this reference period: {ref_p_min}-{ref_p_max-1}, including {ref_p_max-1}')
 
 gap = 0.02 # Maximum gap authorized (in meters) when removing discontinuities
 
-dir_outputs = '../outputs/'
-dir_inputs = '../inputs/'
+# Make sure that the years from the reference period are read and saved
+year_min_min = min(year_min, ref_p_min)
 
 def open_files(file_names):
     try:
@@ -66,13 +55,17 @@ if MIP == 'cmip5':
                             comment='#')
 elif MIP == 'cmip6':
     dir_SelectPath = '../SelectPaths_CMIP6/'
-    ModelList = pd.read_csv(f'{dir_SelectPath}AvailableExperiments_{VAR}'+
-                            f'_{EXP}_historical_piControl.csv')
+    if EXP=='historical':
+         ModelList = pd.read_csv(f'{dir_SelectPath}AvailableExperiments_{VAR}'+
+                                f'_{EXP}_piControl.csv')       
+    else:
+        ModelList = pd.read_csv(f'{dir_SelectPath}AvailableExperiments_{VAR}'+
+                                f'_{EXP}_historical_piControl.csv')
 
 dimMod = len(ModelList.Model)
-time_all = np.arange(year_min, year_max ) + 0.5
+time_all = np.arange(year_min_min, year_max ) + 0.5
 dimt = len(time_all)
-print(dimt)
+print(f'Number of years: {dimt}')
 
 ds = xr.Dataset()
 name_da = {0: VAR+'_corrected', 1: 'trend_piControl'}
@@ -91,36 +84,49 @@ for i in range(dimMod):
         hist_files = loc.select_cmip5_files('historical', VAR, ModelList.loc[i])
         
     elif MIP == 'cmip6':
-        if ModelList.Model[i] == 'MPI-ESM1-2-HR':
-            # For this model the scenarios are done at DKRZ while piControl 
-            # and historical are done at MPI-M
-            ModelList.Center[i] = 'DKRZ'
+        if EXP!='historical':
+            if ModelList.Model[i] == 'MPI-ESM1-2-HR':
+                # For this model the scenarios are done at DKRZ while piControl 
+                # and historical are done at MPI-M
+                ModelList.Center[i] = 'DKRZ'
 
-        sce_files = loc.select_cmip6_files(EXP, VAR, ModelList.iloc[i])
+            sce_files = loc.select_cmip6_files(EXP, VAR, ModelList.iloc[i])
+            
+            try:
+                print('#### Using the following files: ####')
+                [print(str(x)) for x in sce_files]
+            except:
+                sys.exit('ERROR: No file available at that location')
 
         # Read historical simulation as well
         if (ModelList.Model[i] == 'MPI-ESM1-2-HR'):
             ModelList.Center[i] = 'MPI-M'
 
         hist_files = loc.select_cmip6_files('historical', VAR, ModelList.iloc[i])
-
-    if len(sce_files+hist_files) > 0:
-        if verbose:
+        
+        try:
             print('#### Using the following files: ####')
-            [print(str(x)) for x in  (sce_files+hist_files)]
-    else:
-        sys.exit('ERROR: No file available at that location')
+            [print(str(x)) for x in hist_files]
+        except:
+            sys.exit('ERROR: No file available at that location')
 
     hist_ds = open_files(hist_files)
-    sce_ds = open_files(sce_files)
     
-    all_ds = xr.concat([hist_ds,sce_ds],'time')
+    if EXP=='historical':
+        all_ds = hist_ds
+    else:
+        sce_ds = open_files(sce_files)
+        all_ds = xr.concat([hist_ds,sce_ds],'time')
         
     VAR1 = all_ds[VAR].squeeze()
     VAR1a = loc.yearly_mean(VAR1)
 
     # Remove discontinuites in some time series
-    VAR1a = loc.remove_discontinuities(VAR1a, gap)
+    try:
+        VAR1a = loc.remove_discontinuities(VAR1a, gap)
+    except ValueError as err:
+        print(err.args)
+        continue
     
     # Compute the trend from the piControl simulations and save trend
     if verbose:
@@ -148,8 +154,8 @@ for i in range(dimMod):
     # Build polynomial from coefficients
     Trend_pic = xr.polyval(coord=VAR1a.time, coeffs=Trend_pic_coeff)
 
-    trend_da[i,:] = Trend_pic.sel(time=slice(year_min,year_max))
-    da[i,:] = VAR1a.sel(time=slice(year_min,year_max))
+    trend_da[i,:] = Trend_pic.sel(time=slice(year_min_min,year_max))
+    da[i,:] = VAR1a.sel(time=slice(year_min_min,year_max))
     
 ds[VAR+'_corrected'] = da
 ds['trend_picontrol'] = trend_da
@@ -164,7 +170,7 @@ if year_max == 2300: #TODO Old code bellow
 ### Adjust for reference period
 ds = ds - ds.sel(time=slice(ref_p_min,ref_p_max)).mean(dim='time')
 
-if verbose:
+if verbose and EXP!='historical':
     print('### Before detrending:')
     loc.print_results_da(ds[VAR+'_corrected'])
 
@@ -174,7 +180,9 @@ ds[VAR+'_corrected'] = ds[VAR+'_corrected'] -  ds['trend_picontrol']
 # Re-correct for the reference period
 ds = ds - ds.sel(time=slice(ref_p_min,ref_p_max)).mean(dim='time')
 
-if verbose:
+ds = ds.sel(time=slice(year_min,year_max))
+
+if verbose and EXP!='historical':
     print('### After detrending:')    
     loc.print_results_da(ds[VAR+'_corrected'])
 
