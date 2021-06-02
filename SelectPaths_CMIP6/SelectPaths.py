@@ -180,8 +180,8 @@ for variable in ['zostoga', 'zos']:
         
         if (len(variable) == 1) & (len(exp_id) == 3):
             if sce == 'historical':
-                file_name = (f'AvailableExperiments_{variable[0]}_{exp_id[0]}_'+
-                             f'{exp_id[1]}.csv')
+                file_name = (f'AvailableExperiments_{variable[0]}_{exp_id[1]}_'+
+                             f'{exp_id[2]}.csv')
             else:
                 file_name = (f'AvailableExperiments_{variable[0]}_{exp_id[0]}_'+
                              f'{exp_id[1]}_{exp_id[2]}.csv')
