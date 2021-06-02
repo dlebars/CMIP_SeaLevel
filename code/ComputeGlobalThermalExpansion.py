@@ -160,6 +160,10 @@ for i in range(dimMod):
 ds[VAR+'_corrected'] = da
 ds['trend_picontrol'] = trend_da
 
+### Remove missing models
+ds = ds.where(ds.zostoga_corrected!=0)
+ds = ds.dropna('model',how='all')
+
 if year_max == 2300: #TODO Old code bellow
     print('### List of models that run to 2300')
     for i in range(0,dimMod-1):
@@ -188,5 +192,5 @@ if verbose and EXP!='historical':
 
 print("### Export data to a NetCDF file ######################################")
 script_name = os.path.basename(__file__)
-name_output = f'{dir_outputs}{MIP}_SeaLevel_{EXP}_{VAR}_{year_min}_{year_max}.nc'
+name_output = f'{dir_outputs}{MIP}_SeaLevel_{EXP}_{VAR}_{year_min}_{year_max-1}.nc'
 loc.export2netcdf(ds, name_output, script_name)
