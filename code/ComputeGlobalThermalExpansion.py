@@ -17,8 +17,8 @@ verbose = True # Print additional information
 VAR = 'zostoga'
 MIP = 'cmip6'
 # EXP available:
-# cmip6: 'ssp119', 'ssp126', 'ssp245', 'ssp370', 'ssp585'
-# cmip5: 'rcp26', 'rcp45', 'rcp60','rcp85'
+# cmip6: 'historical', 'ssp119', 'ssp126', 'ssp245', 'ssp370', 'ssp585'
+# cmip5: 'historical', 'rcp26', 'rcp45', 'rcp60','rcp85'
 EXP = 'historical'
 dir_outputs = '../outputs/'
 dir_inputs = '../inputs/'
@@ -27,7 +27,7 @@ year_min, year_max, ref_p_min, ref_p_max = loc.start_end_ref_dates(MIP, EXP)
 print(f'Generating a file for this period: {year_min}-{year_max-1}, including {year_max-1}')
 print(f'using this reference period: {ref_p_min}-{ref_p_max-1}, including {ref_p_max-1}')
 
-gap = 0.02 # Maximum gap authorized (in meters) when removing discontinuities
+gap = 0.01 # Maximum gap authorized (in meters) when removing discontinuities
 
 # Make sure that the years from the reference period are read and saved
 year_min_min = min(year_min, ref_p_min)
@@ -192,5 +192,5 @@ if verbose and EXP!='historical':
 
 print("### Export data to a NetCDF file ######################################")
 script_name = os.path.basename(__file__)
-name_output = f'{dir_outputs}{MIP}_SeaLevel_{EXP}_{VAR}_{year_min}_{year_max-1}.nc'
+name_output = f'{dir_outputs}{MIP}_{VAR}_{EXP}_{year_min}_{year_max-1}.nc'
 loc.export2netcdf(ds, name_output, script_name)

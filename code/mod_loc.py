@@ -143,10 +143,10 @@ def remove_discontinuities(da, gap):
     gap: the maximum gap allowed in the data above which the 
     discontinuity is removed'''
     
-    da_out = da.copy()
+    #da_out = da.copy() -> Not clear why this was here
     if isinstance(da, xr.DataArray):
         # Make sure to load the data, Dask arrays do not support item assigment
-        da_out.load()
+        da.load()
         diff = da.diff('time')
     elif isinstance(da, np.ndarray):
         diff = np.array(da[1:]) - np.array(da[:-1])
@@ -162,9 +162,9 @@ def remove_discontinuities(da, gap):
         print("### Removing discontinuities at these indices: ####")
         print(indpb)
         for k in indpb:
-            da_out[k+1:] = da[k+1:] - da[k+1] + da[k]
+            da[k+1:] = da[k+1:] - da[k+1] + da[k]
     
-    return da_out
+    return da
 
 def start_end_ref_dates(MIP, EXP):
     
