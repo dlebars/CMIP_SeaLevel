@@ -5,6 +5,7 @@ import os
 
 import numpy as np
 import xarray as xr
+import pandas as pd
 from scipy import signal
 
 def select_cmip5_files(EXP, VAR, ModelList):
@@ -187,26 +188,21 @@ def start_end_ref_dates(MIP, EXP):
     
     return year_min, year_max, ref_p_min, ref_p_max
 
-# def remove_discontinuities(da, gap):
-#     '''Remove discontinuities in a time series, numpy or data array.
-#     da: The input data
-#     gap: the maximum gap allowed in the data above which the 
-#     discontinuity is removed'''
+def read_model_list(MIP, dir_inputs, EXP, VAR):
+    '''Reads the list of models to use for the analysis'''
     
-#     da_out = da.copy()
-#     if isinstance(da, xr.DataArray):
-#         # Make sure to load the data, Dask arrays do not support item assigment
-#         da_out.load()
-#         diff = da.diff('time')
-#     elif isinstance(da, np.ndarray):
-#         diff = np.array(da[1:]) - np.array(da[:-1])
-#     else:
-#         print('ERROR: Input object type not supported')
-        
-#     indpb = np.where(np.abs(diff) > gap)[0]
-#     if len(indpb) > 0:
-#         print("### Removing discontinuities at these indices: ####")
-#         print(indpb)
-#         for k in indpb:
-#             da_out[k+1:] = da[k+1:] - da[k+1] + da[k]
-#     return da_out
+    if MIP == 'cmip5':
+        col_names = ['Center','Model']
+        ModelList = pd.read_csv(f'{dir_inputs}CMIP5modelSelection_{EXP}_{VAR}.txt', 
+                                delim_whitespace=True, names=col_names,
+                                comment='#')
+    elif MIP == 'cmip6':
+        dir_SelectPath = '../SelectPaths_CMIP6/'
+        if EXP=='historical':
+             ModelList = pd.read_csv(f'{dir_SelectPath}AvailableExperiments_{VAR}'+
+                                    f'_{EXP}_piControl.csv')       
+        else:
+            ModelList = pd.read_csv(f'{dir_SelectPath}AvailableExperiments_{VAR}'+
+                                    f'_{EXP}_historical_piControl.csv')
+            
+    return ModelList

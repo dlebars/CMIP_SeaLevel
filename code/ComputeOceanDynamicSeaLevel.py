@@ -32,7 +32,7 @@ MIP = 'cmip5' # cmip5 or cmip6
 # cmip5: 'historical', 'rcp26', 'rcp45', 'rcp60','rcp85'
 EXP = 'rcp26'
 trend_order = 1 # Order of the polynomial fit used to detrend the data based on
-                # the piControl simulatio
+                # the piControl simulation
 
 year_min, year_max, ref_p_min, ref_p_max = loc.start_end_ref_dates(MIP, EXP)
 print(f'Generating a file for this period: {year_min}-{year_max-1}, including {year_max-1}')
@@ -41,25 +41,7 @@ print(f'using this reference period: {ref_p_min}-{ref_p_max-1}, including {ref_p
 dir_outputs = '../outputs/'
 dir_inputs = '../inputs/'
 
-# Select the file containing the model list to analyse
-if MIP == 'cmip5':
-    if EXP == 'historical':
-        EXPm = 'rcp85'
-    else:
-        EXPm = EXP
-    col_names = ['Center','Model']
-    ModelList = pd.read_csv(f'{dir_inputs}CMIP5modelSelection_{EXPm}_{VAR}.txt', 
-                            delim_whitespace=True, names=col_names,
-                            comment='#')
-elif MIP == 'cmip6':
-    dir_SelectPath = '../SelectPaths_CMIP6/'
-    if EXP == 'historical':
-        ModelList = pd.read_csv(f'{dir_SelectPath}AvailableExperiments_{VAR}'+
-                                f'_historical_piControl.csv')
-    else:
-        ModelList = pd.read_csv(f'{dir_SelectPath}AvailableExperiments_{VAR}'+
-                                f'_{EXP}_historical_piControl.csv')
-
+ModelList = loc.read_model_list(MIP, dir_inputs, EXP, VAR)
 Model = ModelList.Model
 
 # Start and end of each period 

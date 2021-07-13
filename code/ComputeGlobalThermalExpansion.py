@@ -47,21 +47,7 @@ def open_files(file_names):
 
     return ds
 
-# Select the file containing the model list to analyse
-if MIP == 'cmip5':
-    col_names = ['Center','Model']
-    ModelList = pd.read_csv(f'{dir_inputs}CMIP5modelSelection_{EXP}_{VAR}.txt', 
-                            delim_whitespace=True, names=col_names,
-                            comment='#')
-elif MIP == 'cmip6':
-    dir_SelectPath = '../SelectPaths_CMIP6/'
-    if EXP=='historical':
-         ModelList = pd.read_csv(f'{dir_SelectPath}AvailableExperiments_{VAR}'+
-                                f'_{EXP}_piControl.csv')       
-    else:
-        ModelList = pd.read_csv(f'{dir_SelectPath}AvailableExperiments_{VAR}'+
-                                f'_{EXP}_historical_piControl.csv')
-
+ModelList = loc.read_model_list(MIP, dir_inputs, EXP, VAR)
 dimMod = len(ModelList.Model)
 time_all = np.arange(year_min_min, year_max ) + 0.5
 dimt = len(time_all)
