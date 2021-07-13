@@ -39,15 +39,8 @@ def trend_pic(MIP, VAR, ModelList, order, year_min, year_max, conv_pic_hist,
     
     EXP = 'piControl'
     tot_year = year_max - year_min + 1
-    
-    if MIP == 'cmip5':
-        files = loc.select_cmip5_files('piControl', VAR, ModelList)
-    elif MIP == 'cmip6':
-        files = loc.select_cmip6_files('piControl', VAR, ModelList)
-
-    if verbose:
-        print("#### Using following files: ####")
-        [print(str(x)) for x in files]
+        
+    files = loc.select_files(MIP, EXP, VAR, ModelList, verbose)
     
     ds = xr.open_mfdataset(files, combine='by_coords', use_cftime=True)
 

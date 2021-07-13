@@ -188,7 +188,7 @@ def start_end_ref_dates(MIP, EXP):
     
     return year_min, year_max, ref_p_min, ref_p_max
 
-def read_model_list(MIP, dir_inputs, EXP, VAR):
+def read_model_list(dir_inputs, MIP, EXP, VAR):
     '''Reads the list of models to use for the analysis'''
     
     if MIP == 'cmip5':
@@ -206,3 +206,29 @@ def read_model_list(MIP, dir_inputs, EXP, VAR):
                                     f'_{EXP}_historical_piControl.csv')
             
     return ModelList
+
+def select_files(MIP, EXP, VAR, ModelList_loc, verbose=False):
+    '''Select file names and paths'''
+    
+    if MIP == 'cmip5':
+        files = select_cmip5_files(EXP, VAR, ModelList_loc)
+        
+    elif MIP == 'cmip6': 
+        # For this model the scenarios are done at DKRZ while piControl 
+        # and historical are done at MPI-M
+        if (ModelList_loc.Model == 'MPI-ESM1-2-HR'):
+            if EXP in ['historical', 'piControl']:
+                ModelList_loc.Center = 'MPI-M'
+            else:
+                ModelList_loc.Center = 'DKRZ'
+
+        files = select_cmip6_files(EXP, VAR, ModelList_loc)
+            
+    if verbose:
+        if len(files) > 0:
+            print('#### Using the following files: ####')
+            [print(str(x)) for x in files]
+        else:
+            sys.exit('ERROR: No file available at that location') 
+        
+    return files

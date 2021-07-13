@@ -26,11 +26,11 @@ import mod_trend_picontrol as pic
 
 verbose = True
 VAR = 'zos'
-MIP = 'cmip5' # cmip5 or cmip6
+MIP = 'cmip6' # cmip5 or cmip6
 # EXP available:
 # cmip6: 'historical', 'ssp119', 'ssp126', 'ssp245', 'ssp370', 'ssp585'
 # cmip5: 'historical', 'rcp26', 'rcp45', 'rcp60','rcp85'
-EXP = 'rcp26'
+EXP = 'ssp245'
 trend_order = 1 # Order of the polynomial fit used to detrend the data based on
                 # the piControl simulation
 
@@ -41,7 +41,7 @@ print(f'using this reference period: {ref_p_min}-{ref_p_max-1}, including {ref_p
 dir_outputs = '../outputs/'
 dir_inputs = '../inputs/'
 
-ModelList = loc.read_model_list(MIP, dir_inputs, EXP, VAR)
+ModelList = loc.read_model_list(dir_inputs, MIP, EXP, VAR)
 Model = ModelList.Model
 
 # Build array of years
@@ -50,7 +50,8 @@ years = np.arange(year_min,year_max) + 0.5
 # Read the regular 1*1 grid to use for regridded outputs
 mask_ds = xr.open_dataset(dir_inputs+'reference_masks.nc')
 
-# The mask closes the Mediteranean sea which is not necessary
+# The mask closes the Mediteranean sea which is not necessary so here I modify
+# it
 mask_ds['mask'].loc[dict(lat=slice(34,36), lon=-5.5)] = 1
 
 weights = np.cos(np.deg2rad(mask_ds.lat))
@@ -66,38 +67,10 @@ print(Model)
 for i in range(len(Model)):
     print(f'####### Working on model {i}, {Model[i]}  ######################')
     
-    # Read paths and file names
-    if MIP == 'cmip5':
-        if EXP != 'historical':
-            sce_files = loc.select_cmip5_files(EXP, VAR, ModelList.loc[i])
-        hist_files = loc.select_cmip5_files('historical', VAR, ModelList.loc[i])
-        
-    elif MIP == 'cmip6':
-        if EXP != 'historical':
-            if Model[i] == 'MPI-ESM1-2-HR':
-            # For this model the scenarios are done at DKRZ while piControl 
-            # and historical are done at MPI-M
-                ModelList.Center[i] = 'DKRZ'
-                
-            sce_files = loc.select_cmip6_files(EXP, VAR, ModelList.iloc[i])
-
-        # Read historical simulation as well
-        if (Model[i] == 'MPI-ESM1-2-HR'):
-            ModelList.Center[i] = 'MPI-M'
-
-        hist_files = loc.select_cmip6_files('historical', VAR, ModelList.iloc[i])
-            
-    try:
-        all_files = sce_files+hist_files
-    except:
-        all_files = hist_files
-        
-    if len(all_files) > 0:
-        if verbose:
-            print('#### Using the following files: ####')
-            [print(str(x)) for x in  (all_files)]
-    else:
-        sys.exit('ERROR: No file available at that location')        
+    hist_files = loc.select_files(MIP, 'historical', VAR, ModelList.loc[i], verbose)
+    
+    if EXP != 'historical':
+        sce_files = loc.select_files(MIP, EXP, VAR, ModelList.loc[i], verbose)       
     
     # Open files
     try:

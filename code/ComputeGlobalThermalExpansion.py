@@ -19,7 +19,7 @@ MIP = 'cmip6'
 # EXP available:
 # cmip6: 'historical', 'ssp119', 'ssp126', 'ssp245', 'ssp370', 'ssp585'
 # cmip5: 'historical', 'rcp26', 'rcp45', 'rcp60','rcp85'
-EXP = 'historical'
+EXP = 'ssp245'
 dir_outputs = '../outputs/'
 dir_inputs = '../inputs/'
 
@@ -47,7 +47,7 @@ def open_files(file_names):
 
     return ds
 
-ModelList = loc.read_model_list(MIP, dir_inputs, EXP, VAR)
+ModelList = loc.read_model_list(dir_inputs, MIP, EXP, VAR)
 dimMod = len(ModelList.Model)
 time_all = np.arange(year_min_min, year_max ) + 0.5
 dimt = len(time_all)
@@ -64,37 +64,10 @@ trend_da = xr.DataArray(np.zeros([dimMod, dimt]), coords=[ModelList.Model, time_
 for i in range(dimMod):
     print(f'####### Working on model {i}, {ModelList.Model[i]}  ############')
 
-    # Read paths and file names
-    if MIP == 'cmip5':
-        sce_files = loc.select_cmip5_files(EXP, VAR, ModelList.loc[i])
-        hist_files = loc.select_cmip5_files('historical', VAR, ModelList.loc[i])
-        
-    elif MIP == 'cmip6':
-        if EXP!='historical':
-            if ModelList.Model[i] == 'MPI-ESM1-2-HR':
-                # For this model the scenarios are done at DKRZ while piControl 
-                # and historical are done at MPI-M
-                ModelList.Center[i] = 'DKRZ'
-
-            sce_files = loc.select_cmip6_files(EXP, VAR, ModelList.iloc[i])
-            
-            try:
-                print('#### Using the following files: ####')
-                [print(str(x)) for x in sce_files]
-            except:
-                sys.exit('ERROR: No file available at that location')
-
-        # Read historical simulation as well
-        if (ModelList.Model[i] == 'MPI-ESM1-2-HR'):
-            ModelList.Center[i] = 'MPI-M'
-
-        hist_files = loc.select_cmip6_files('historical', VAR, ModelList.iloc[i])
-        
-        try:
-            print('#### Using the following files: ####')
-            [print(str(x)) for x in hist_files]
-        except:
-            sys.exit('ERROR: No file available at that location')
+    hist_files = loc.select_files(MIP, 'historical', VAR, ModelList.loc[i], verbose)
+    
+    if EXP != 'historical':
+        sce_files = loc.select_files(MIP, EXP, VAR, ModelList.loc[i], verbose)
 
     hist_ds = open_files(hist_files)
     
