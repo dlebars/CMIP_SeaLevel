@@ -44,11 +44,14 @@ dir_inputs = '../inputs/'
 ModelList = loc.read_model_list(MIP, dir_inputs, EXP, VAR)
 Model = ModelList.Model
 
-# Start and end of each period 
-years_s = np.arange(year_min,year_max) + 0.5
+# Build array of years
+years = np.arange(year_min,year_max) + 0.5
 
 # Read the regular 1*1 grid to use for regridded outputs
 mask_ds = xr.open_dataset(dir_inputs+'reference_masks.nc')
+
+# The mask closes the Mediteranean sea which is not necessary
+mask_ds['mask'].loc[dict(lat=slice(34,36), lon=-5.5)] = 1
 
 weights = np.cos(np.deg2rad(mask_ds.lat))
 weights.name = 'weights'
@@ -188,12 +191,12 @@ for i in range(len(Model)):
         print('!!! WARNING: Detrending from piControl for this model does not'+ 
               ' work !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
         branching_method = 'no_detrending'
-        Trend_pic = xr.DataArray(np.zeros(len(years_s)), coords=[years_s], dims=["time"])
+        Trend_pic = xr.DataArray(np.zeros(len(years)), coords=[years], dims=["time"])
     
-    MAT_CorrectedZOS_reg = np.zeros([len(years_s), len(mask_ds.lat), len(mask_ds.lon)])
+    MAT_CorrectedZOS_reg = np.zeros([len(years), len(mask_ds.lat), len(mask_ds.lon)])
     
     ##### Loop on the years ######################################
-    for idx, year in enumerate(years_s):
+    for idx, year in enumerate(years):
         print(f'Working on year: {year}')
 
         VAR1 = y_ds[VAR].sel(time=year)
