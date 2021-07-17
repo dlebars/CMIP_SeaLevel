@@ -2,6 +2,7 @@
 from pathlib import Path
 from datetime import datetime
 import os
+import sys
 
 import numpy as np
 import xarray as xr

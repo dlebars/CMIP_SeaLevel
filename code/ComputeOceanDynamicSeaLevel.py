@@ -30,11 +30,13 @@ MIP = 'cmip6' # cmip5 or cmip6
 # EXP available:
 # cmip6: 'historical', 'ssp119', 'ssp126', 'ssp245', 'ssp370', 'ssp585'
 # cmip5: 'historical', 'rcp26', 'rcp45', 'rcp60','rcp85'
-EXP = 'ssp245'
+EXP = 'ssp585'
 trend_order = 1 # Order of the polynomial fit used to detrend the data based on
                 # the piControl simulation
 
 year_min, year_max, ref_p_min, ref_p_max = loc.start_end_ref_dates(MIP, EXP)
+#year_min = 2097 # Specify a shorter time range for tests
+#year_max = 2099
 print(f'Generating a file for this period: {year_min}-{year_max-1}, including {year_max-1}')
 print(f'using this reference period: {ref_p_min}-{ref_p_max-1}, including {ref_p_max-1}')
 
@@ -42,6 +44,12 @@ dir_outputs = '../outputs/'
 dir_inputs = '../inputs/'
 
 ModelList = loc.read_model_list(dir_inputs, MIP, EXP, VAR)
+
+# Remove a model for which the analysis fails
+ModelList = ModelList.loc[ModelList.Model!='CNRM-CM6-1-HR']
+# Remove a model that is on an unstructured grid for which regridding fails
+ModelList = ModelList.loc[ModelList.Model!='AWI-CM-1-1-MR']
+
 Model = ModelList.Model
 
 # Build array of years
@@ -52,7 +60,9 @@ mask_ds = xr.open_dataset(dir_inputs+'reference_masks.nc')
 
 # The mask closes the Mediteranean sea which is not necessary so here I modify
 # it
-mask_ds['mask'].loc[dict(lat=slice(34,36), lon=-5.5)] = 1
+mask_ds['mask'].loc[dict(lat=slice(34,36), lon=354.5)] = 1
+
+mask_ds = loc.rotate_longitude(mask_ds, 'lon')
 
 weights = np.cos(np.deg2rad(mask_ds.lat))
 weights.name = 'weights'
@@ -65,12 +75,12 @@ print('Model used:')
 print(Model)
 
 for i in range(len(Model)):
-    print(f'####### Working on model {i}, {Model[i]}  ######################')
+    print(f'####### Working on model {i}, {Model.iloc[i]}  ######################')
     
-    hist_files = loc.select_files(MIP, 'historical', VAR, ModelList.loc[i], verbose)
+    hist_files = loc.select_files(MIP, 'historical', VAR, ModelList.iloc[i], verbose)
     
     if EXP != 'historical':
-        sce_files = loc.select_files(MIP, EXP, VAR, ModelList.loc[i], verbose)       
+        sce_files = loc.select_files(MIP, EXP, VAR, ModelList.iloc[i], verbose)       
     
     # Open files
     try:
@@ -80,7 +90,7 @@ for i in range(len(Model)):
             sce_ds = xr.open_mfdataset(sce_files, combine='by_coords', 
                                        use_cftime=True)
     except:
-        print(f'!!!!!!!!! Could not open data from {Model[i]}!!!!!!!!!!!!!!!')
+        print(f'!!!!!!!!! Could not open data from {Model.iloc[i]}!!!!!!!!!!!!!!!')
         print('Try the function open_mfdataset with the option combine="nested" ')
         continue
     
@@ -91,7 +101,7 @@ for i in range(len(Model)):
         
     y_ds = loc.yearly_mean(ds)
     
-    if Model[i] == 'BCC-CSM2-MR':
+    if Model.iloc[i] == 'BCC-CSM2-MR':
         y_ds = y_ds.rename({'lat':'rlat', 'lon':'rlon'})
     
     if 'latitude' and 'longitude' in y_ds.coords:
@@ -102,16 +112,16 @@ for i in range(len(Model)):
     # Build regridder with xESMF
     try:
         reg_method = 'bilinear'
-        regridder = xe.Regridder(y_ds, ds_out, reg_method, periodic=True,
-                                filename=f'{reg_method}_{Model[i]}_{VAR}_{EXP}')
+        regridder = xe.Regridder(y_ds, ds_out, reg_method, periodic=True)
+        # Used to take this filename as input:
+        #filename=f'{reg_method}_{Model.iloc[i]}_{VAR}_{EXP}')
     except:
         try:
             reg_method = 'nearest_s2d'
-            regridder = xe.Regridder(y_ds, ds_out, reg_method, periodic=True,
-                                    filename=f'{reg_method}_{Model[i]}_{VAR}_{EXP}')
+            regridder = xe.Regridder(y_ds, ds_out, reg_method, periodic=True)
         except:
             print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
-            print(f'Regridding did not work for {Model[i]}')
+            print(f'Regridding did not work for {Model.iloc[i]}')
             print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
             continue
     
@@ -140,7 +150,7 @@ for i in range(len(Model)):
             conv_pic_hist = float(y_ds.time[0]) - time_ds.time.dt.year.values[0]
     except:
         # Pick a random large value that makes sure branching is not used in
-        # trend_zos_pic_cmip5
+        # trend_pic
         conv_pic_hist = -9999
 
     Trend_pic_coeff, branching_method = pic.trend_pic(
@@ -174,7 +184,7 @@ for i in range(len(Model)):
 
         VAR1 = y_ds[VAR].sel(time=year)
 
-        if (Model[i] in ['MIROC5', 'GISS-E2-R', 'GISS-E2-R-CC', 'EC-EARTH', 
+        if (Model.iloc[i] in ['MIROC5', 'GISS-E2-R', 'GISS-E2-R-CC', 'EC-EARTH', 
                           'MRI-CGCM3']): 
             VAR1 = np.where(VAR1==0,np.nan,VAR1)
 
@@ -184,35 +194,34 @@ for i in range(len(Model)):
 
         # Regrid to the reference 1*1 degree grid
         DTrendVAR1_reg = regridder(DTrendVAR1)
-    
-        # Mask other problematic regions here
-        if Model[i] in ['MIROC5', 'GFDL-ESM2M', 'GFDL-CM3','GISS-E2-R', 
+
+        # Mask problematic regions here
+        if Model.iloc[i] in ['MIROC5', 'GFDL-ESM2M', 'GFDL-CM3','GISS-E2-R', 
                          'GISS-E2-R-CC']:
             DTrendVAR1_reg  = DTrendVAR1_reg*mask_ds.mask_med
         else:
             DTrendVAR1_reg  = DTrendVAR1_reg*mask_ds.mask
 
         # Fill the NaN values
-        DTrendVAR1_reg = DTrendVAR1_reg.interpolate_na('lon')
-
-        DTrendVAR1_reg  = DTrendVAR1_reg*mask_ds.mask
-
-        area_mean       = DTrendVAR1_reg.weighted(weights).mean(('lon', 'lat'))
-        print(f'Removing area mean of:{np.round(area_mean.values,2)} m')
+        DTrendVAR1_reg = DTrendVAR1_reg.interpolate_na('lon', method='nearest', 
+                                                       fill_value='extrapolate')
+        DTrendVAR1_reg = DTrendVAR1_reg*mask_ds.mask
+        area_mean = DTrendVAR1_reg.weighted(weights).mean(('lon', 'lat'))
+        print(f'Removing spatial mean of:{np.round(area_mean.values,2)} m')
         MAT_CorrectedZOS_reg[idx,:,:] = DTrendVAR1_reg - area_mean
 
-    regridder.clean_weight_file()
+#    regridder.clean_weight_file()
 
     ### Export to a NetCDF file
     # Convert from m to cm
     MAT_CorrectedZOS_reg = xr.DataArray(MAT_CorrectedZOS_reg*100, 
-                                        coords=[years_s, mask_ds.lat, mask_ds.lon], 
+                                        coords=[years, mask_ds.lat, mask_ds.lon], 
                                         dims=['time', 'lat', 'lon'])
-    MAT_CorrectedZOS_reg = MAT_CorrectedZOS_reg.expand_dims({'model': [Model[i]]},0)
+    MAT_CorrectedZOS_reg = MAT_CorrectedZOS_reg.expand_dims({'model': [Model.iloc[i]]},0)
     MAT_CorrectedZOS_reg.attrs['units'] = 'cm'
     MAT_CorrectedZOS_reg.attrs['regridding_method'] = f'xESMF package with {reg_method}'
     MAT_CorrectedZOS_reg.attrs['branching_method'] = branching_method
-    MAT_CorrectedZOS_reg.attrs['detrending_order'] = trend_order
+    MAT_CorrectedZOS_reg.attrs['detrending_order'] = 'f{trend_order}'
     
     MAT_OUT_ds = xr.Dataset({f'CorrectedReggrided_{VAR}': MAT_CorrectedZOS_reg})
 
@@ -221,7 +230,8 @@ for i in range(len(Model)):
     MAT_OUT_ds.attrs['creation_date'] = datetime.now().strftime('%Y-%m-%d %H:%M')
     MAT_OUT_ds.attrs['emission_scenario'] = EXP
 
-    NameOutput = f'{dir_outputs}{MIP}_{VAR}_{EXP}_{Model[i]}_{year_min}_{year_max-1}.nc'
+    NameOutput = f'{dir_outputs}{MIP}_{VAR}_{EXP}_{Model.iloc[i]}_{year_min}_{year_max-1}.nc'
+    
     if os.path.isfile(NameOutput):
         os.remove(NameOutput)
     MAT_OUT_ds.to_netcdf(NameOutput)
