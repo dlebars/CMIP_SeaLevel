@@ -36,15 +36,10 @@ def read_zos_ds(data_dir, mip, sce):
     '''Read both historical and scenario datasets, select the intersecting 
     models and concate the two datasets'''
     
-    if mip == 'cmip5':
-        mip2 = mip.upper()
-    else:
-        mip2 = mip
-    
     hist_ds = xr.open_mfdataset(
-        f'{data_dir}/{mip}_zos_historical/{mip2}_zos_historical_*.nc')
+        f'{data_dir}/{mip}_zos_historical/{mip}_zos_historical_*.nc')
     sce_ds = xr.open_mfdataset(
-        f'{data_dir}/{mip}_zos_{sce}/{mip2}_zos_{sce}_*.nc')
+        f'{data_dir}/{mip}_zos_{sce}/{mip}_zos_{sce}_*.nc')
     model_intersection = list(set(hist_ds.model.values) & 
                               set(sce_ds.model.values))
     model_intersection.sort()
