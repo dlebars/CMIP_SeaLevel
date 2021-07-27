@@ -221,7 +221,7 @@ for i in range(len(Model)):
     MAT_CorrectedZOS_reg.attrs['units'] = 'cm'
     MAT_CorrectedZOS_reg.attrs['regridding_method'] = f'xESMF package with {reg_method}'
     MAT_CorrectedZOS_reg.attrs['branching_method'] = branching_method
-    MAT_CorrectedZOS_reg.attrs['detrending_order'] = 'f{trend_order}'
+    MAT_CorrectedZOS_reg.attrs['detrending_order'] = f'{trend_order}'
     
     MAT_OUT_ds = xr.Dataset({f'CorrectedReggrided_{VAR}': MAT_CorrectedZOS_reg})
 

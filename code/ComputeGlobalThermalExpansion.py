@@ -38,7 +38,7 @@ def open_files(file_names):
         print(f'Open by_coords did not work for:{file_names}')
         print('Using nested option instead')
         try:
-            ds = xr.open_mfdataset(hist_files, combine='nested', 
+            ds = xr.open_mfdataset(file_names, combine='nested', 
                                    concat_dim='time', 
                                    use_cftime=True)
         except:
