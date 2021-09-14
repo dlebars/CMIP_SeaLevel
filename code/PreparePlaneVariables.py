@@ -1,11 +1,10 @@
 ###############################################################################
-# ComputeOceanDynamicSeaLevel.py: 
-# - Read zos variable from local CMIP5/CMIP6 files synchronized from ESGF nodes using 
-# synda
-# - Correct the data by removing the trend from piCcontrol simulations
-# - Regrid all fields to a common 1x1 lat/lon grid
+# PreparePlaneVariables.py: 
+# - Read 2D space variable from local CMIP5/CMIP6 files synchronized from ESGF 
+# nodes using synda
+# - Optionally correct the data by removing the trend from piCcontrol simulations
+# - Regrid data to a common 1x1 lat/lon grid
 # - Export the result as a NetCDF file
-# Equivalent to the former PrepThermalExpMapsTS.ncl script
 #
 # Run time can take a while because of the interpollation, around 10 hours for
 # a scenario with 20 model
@@ -25,18 +24,19 @@ import mod_loc as loc
 import mod_trend_picontrol as pic
 
 verbose = True
-VAR = 'zos'
+VAR = 'zos' # 'zos', 'ps', 'uas', 'vas'
 MIP = 'cmip6' # cmip5 or cmip6
 # EXP available:
 # cmip6: 'historical', 'ssp119', 'ssp126', 'ssp245', 'ssp370', 'ssp585'
 # cmip5: 'historical', 'rcp26', 'rcp45', 'rcp60','rcp85'
 EXP = 'ssp585'
+
+detrend = True # Detrend using piControl simulation
 trend_order = 1 # Order of the polynomial fit used to detrend the data based on
                 # the piControl simulation
 
 year_min, year_max, ref_p_min, ref_p_max = loc.start_end_ref_dates(MIP, EXP)
-#year_min = 2097 # Specify a shorter time range for tests
-#year_max = 2099
+
 print(f'Generating a file for this period: {year_min}-{year_max-1}, including {year_max-1}')
 print(f'using this reference period: {ref_p_min}-{ref_p_max-1}, including {ref_p_max-1}')
 
@@ -116,68 +116,32 @@ for i in range(len(Model)):
     try:
         reg_method = 'bilinear'
         regridder = xe.Regridder(y_ds, ds_out, reg_method, periodic=True)
-        # Used to take this filename as input:
-        #filename=f'{reg_method}_{Model.iloc[i]}_{VAR}_{EXP}')
+
     except:
         try:
             reg_method = 'nearest_s2d'
             regridder = xe.Regridder(y_ds, ds_out, reg_method, periodic=True)
         except:
-            print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
+            print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
             print(f'Regridding did not work for {Model.iloc[i]}')
-            print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
+            print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
             continue
-    
-    if verbose:
-        print(regridder)
+
+        if verbose:
+            print(regridder)
     
     RefVAR1 = y_ds[VAR].sel(time=slice(ref_p_min,ref_p_max)).mean(dim='time')
 
-    # Use the reference field to mask the small seas that are not connected to the
-    # ocean and areas where sea ice is included on the ocean load
-    RefVAR1_corr = RefVAR1 - RefVAR1.mean() #TODO weigthed mean
-    MaskRefVAR1  = np.where((RefVAR1_corr>=2) | (RefVAR1_corr<=-2),np.nan,1)
+    if var=='zos':
+        # Use the reference field to mask the small seas that are not connected to the
+        # ocean and areas where sea ice is included on the ocean load
+        RefVAR1_corr = RefVAR1 - RefVAR1.mean() #TODO weigthed mean
+        MaskRefVAR1  = np.where((RefVAR1_corr>=2) | (RefVAR1_corr<=-2),np.nan,1)
 
-    if verbose:
-        pic.info_branching(hist_ds.attrs)
-            
-    try:
-        # Convert the year from piControl to historical run
-        if MIP == 'cmip5':
-            conv_pic_hist = float(y_ds.time[0]) - float(hist_ds.attrs['branch_time'])
-        elif MIP == 'cmip6':
-            attrs = {'units': hist_ds.attrs['parent_time_units']}
-            time_flt = [float(hist_ds.attrs['branch_time_in_parent'])]
-            time_ds = xr.Dataset({'time': ('time', time_flt, attrs)})
-            time_ds = xr.decode_cf(time_ds, use_cftime=True)
-            conv_pic_hist = float(y_ds.time[0]) - time_ds.time.dt.year.values[0]
-    except:
-        # Pick a random large value that makes sure branching is not used in
-        # trend_pic
-        conv_pic_hist = -9999
-
-    Trend_pic_coeff, branching_method = pic.trend_pic(
-        MIP, VAR, ModelList.iloc[i], order=trend_order, year_min=1850, 
-        year_max=2100,conv_pic_hist=conv_pic_hist, gap=None, rmv_disc=False, 
-        verbose=verbose)
-    
-    try:
-        # This breaks when Trend_pic_coeff does not contain values.
-        # It hapens for BCC-CSM2-MR for which polyfit does not return 
-        # coefficients but does not crash
-        test = Trend_pic_coeff.values
-        
-        # Build polynomial from coefficients
-        Trend_pic = xr.polyval(coord=y_ds.time, coeffs=Trend_pic_coeff)
-
-        # Remove the average over the reference period
-        Trend_pic = Trend_pic - Trend_pic.sel(time=slice(ref_p_min,ref_p_max)
-                                             ).mean(dim='time')
-    except:
-        print('!!! WARNING: Detrending from piControl for this model does not'+ 
-              ' work !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
-        branching_method = 'no_detrending'
-        Trend_pic = xr.DataArray(np.zeros(len(years)), coords=[years], dims=["time"])
+    if detrend:
+        Trend_pic, branching_method = pic.trend_pic_ts(
+            y_ds, hist_ds.attr, MIP, VAR, ModelList.iloc[i], trend_order, 
+            rmv_disc=False, verbose=verbose)
     
     MAT_CorrectedZOS_reg = np.zeros([len(years), len(mask_ds.lat), len(mask_ds.lon)])
     

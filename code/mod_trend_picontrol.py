@@ -31,6 +31,30 @@ def info_branching(ds_attrs):
         try_attr('branch_time_in_parent', ds_attrs)
         try_attr('parent_time_units', ds_attrs)
         
+
+def conv_time_pic_hist(y_ds, hist_ds_attr, verbose=False):
+    ''' Find the time conversion between the piControl and the historical 
+    simulations'''
+    
+    if verbose:
+        pic.info_branching(hist_ds_attr)
+            
+    try:
+        if MIP == 'cmip5':
+            conv_pic_hist = float(y_ds.time[0]) - float(hist_ds_attr['branch_time'])
+        elif MIP == 'cmip6':
+            attrs = {'units': hist_ds_attr['parent_time_units']}
+            time_flt = [float(hist_ds_attr['branch_time_in_parent'])]
+            time_ds = xr.Dataset({'time': ('time', time_flt, attrs)})
+            time_ds = xr.decode_cf(time_ds, use_cftime=True)
+            conv_pic_hist = float(y_ds.time[0]) - time_ds.time.dt.year.values[0]
+    except:
+        # Pick a random large value that makes sure branching is not used in
+        # trend_pic
+        conv_pic_hist = -9999
+        
+    return conv_pic_hist
+
 def trend_pic(MIP, VAR, ModelList, order, year_min, year_max, conv_pic_hist, 
               gap, rmv_disc, verbose=False):
     '''Compute zos or zostoga trend over the pre-industrial control model simulations.
@@ -72,3 +96,33 @@ def trend_pic(MIP, VAR, ModelList, order, year_min, year_max, conv_pic_hist,
     VAR1_coeff = VAR1.polyfit(dim='time',deg=order)
     
     return VAR1_coeff.polyfit_coefficients, branching_method
+
+def trend_pic_ts(y_ds, hist_ds_attr, MIP, VAR, ModelList_i, trend_order, rmv_disc, verbose):
+    '''Compute the trend time series from the piControl simulation'''
+    
+    conv_pic_hist = conv_time_pic_hist(y_ds, hist_ds_attr, verbose=verbose)
+
+    Trend_pic_coeff, branching_method = trend_pic(
+        MIP, VAR, ModelList_i, order=trend_order, year_min=1850, 
+        year_max=2100, conv_pic_hist=conv_pic_hist, gap=None, 
+        rmv_disc=False, verbose=verbose)
+    
+    try:
+        # This breaks when Trend_pic_coeff does not contain values.
+        # It hapens for BCC-CSM2-MR for which polyfit does not return 
+        # coefficients but does not crash
+        test = Trend_pic_coeff.values
+        
+        # Build polynomial from coefficients
+        Trend_pic = xr.polyval(coord=y_ds.time, coeffs=Trend_pic_coeff)
+
+        # Remove the average over the reference period
+        Trend_pic = Trend_pic - Trend_pic.sel(time=slice(ref_p_min,ref_p_max)
+                                             ).mean(dim='time')
+    except:
+        print('!!! WARNING: Detrending from piControl for this model does not'+ 
+              ' work !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
+        branching_method = 'no_detrending'
+        Trend_pic = xr.DataArray(np.zeros(len(years)), coords=[years], dims=["time"])
+        
+    return Trend_pic, branching_method
