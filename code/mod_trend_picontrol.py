@@ -45,6 +45,7 @@ def trend_pic(MIP, VAR, ModelList, order, year_min, year_max, conv_pic_hist,
     ds = xr.open_mfdataset(files, combine='by_coords', use_cftime=True)
 
     y_ds = loc.yearly_mean(ds)
+    y_ds = y_ds.load()
     
     if ModelList.Model=='BCC-CSM2-MR' and VAR=='zos':
         y_ds = y_ds.rename({'lat':'rlat', 'lon':'rlon'})

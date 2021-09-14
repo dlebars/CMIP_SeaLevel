@@ -13,7 +13,7 @@ def select_cmip5_files(EXP, VAR, ModelList):
     '''Return a list of paths to the CMIP5 data files'''
     
     if EXP == 'rcp60':
-        data_dir = '/nobackup_1/users/bars/synda_cmip6/cmip5/output1/'
+        data_dir = '/nobackup/users/bars/synda_data/cmip5/output1/'
         path_string = f'*/*/*/*/*{VAR}*.nc'
         path_nb = 2
     else:
@@ -47,7 +47,7 @@ def select_cmip6_files(EXP, VAR, ModelList):
            'ssp370' : 'ScenarioMIP', 
            'ssp585' : 'ScenarioMIP'}
     
-    data_dir  = '/nobackup_1/users/bars/synda_cmip6/CMIP6/'
+    data_dir  = '/nobackup/users/bars/synda_data/CMIP6/'
     data_path = (data_dir+MIP[EXP]+'/'+ModelList.Center+'/'+ModelList.Model+
                 '/'+EXP+'/'+ModelList[EXP+'_Variant']+'/Omon/'+VAR+'/'+
                 ModelList.Grid+'/'+ModelList[EXP+'_Version'])
@@ -181,7 +181,7 @@ def start_end_ref_dates(MIP, EXP):
     year_end_sce = {'cmip5': 2101, 'cmip6': 2100}
 
     if EXP == 'historical':
-        year_min = 1900 # Could start from 1850
+        year_min = 1850 # Could start from 1850? Used to be 1900
         year_max = year_start_sce[MIP]
     else:
         year_min = year_start_sce[MIP]

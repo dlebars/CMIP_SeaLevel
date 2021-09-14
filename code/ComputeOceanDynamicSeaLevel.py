@@ -86,9 +86,12 @@ for i in range(len(Model)):
     try:
         hist_ds = xr.open_mfdataset(hist_files, combine='by_coords', 
                                     use_cftime=True)
+        hist_ds = hist_ds.load()
+        
         if EXP != 'historical':
             sce_ds = xr.open_mfdataset(sce_files, combine='by_coords', 
                                        use_cftime=True)
+            sce_ds = sce_ds.load()
     except:
         print(f'!!!!!!!!! Could not open data from {Model.iloc[i]}!!!!!!!!!!!!!!!')
         print('Try the function open_mfdataset with the option combine="nested" ')
