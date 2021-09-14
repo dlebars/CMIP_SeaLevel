@@ -134,13 +134,15 @@ def make_final_info_df(info_df, ind_mods, info_exp, exp):
     
 ###############################################################################
 
-CMIP6_path = '/nobackup_1/users/bars/synda_cmip6/CMIP6/'
+CMIP6_path = '/nobackup/users/bars/synda_data/CMIP6/'
+#'/nobackup_1/users/bars/synda_cmip6/CMIP6/'
 depth = depth_path(CMIP6_path)
 # var can either the name of a specific variant like r1i1p1f1
 # or 'any' to automatically pick any variant available
 var = 'any'
+# Variables available: 'zostoga', 'zos', 'ps', 'uas', 'vas' 
 
-for variable in ['zostoga', 'zos']:
+for variable in ['ps', 'uas', 'vas']:
     variable = [variable]
     for sce in ['historical','ssp119', 'ssp126', 'ssp245', 'ssp370', 'ssp585']:
         print('####### Working on '+str(variable)+', '+str(sce)+'#################'+
@@ -164,9 +166,15 @@ for variable in ['zostoga', 'zos']:
             else:
                 if var=='any' and idx==1 and sce!='historical':
                     # Historical should use the same variant as scenario
-                    print('!!!!!! Using new case !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
-                    v_info_df = make_final_info_df(info_df, ind_mods, 
-                                                   final_info_df, sce)
+                    # but sometimes that is not available (very rarely,
+                    # mostly while the downloading is not finished)
+                    try:
+                        v_info_df = make_final_info_df(info_df, ind_mods, 
+                                                       final_info_df, sce)
+                    except:
+                        print('!!! WARNING: The selected scenario variant has no'
+                              +' historical simulation')
+                        continue
                 else:
                     v_info_df = make_final_info_df(info_df, ind_mods, None, None)
                     
