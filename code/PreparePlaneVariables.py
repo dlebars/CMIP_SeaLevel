@@ -139,8 +139,12 @@ for i in range(len(Model)):
 
     if detrend:
         Trend_pic, branching_method = pic.trend_pic_ts(
-            y_ds, hist_ds.attr, MIP, VAR, ModelList.iloc[i], trend_order, 
+            y_ds, hist_ds.attrs, MIP, VAR, ModelList.iloc[i], trend_order, 
             rmv_disc=False, verbose=verbose)
+        
+        # Remove the average over the reference period
+        Trend_pic = Trend_pic - Trend_pic.sel(time=slice(ref_p_min,ref_p_max)
+                                             ).mean(dim='time')
     
     MAT_CorrectedZOS_reg = np.zeros([len(years), len(mask_ds.lat), len(mask_ds.lon)])
     
@@ -194,6 +198,7 @@ for i in range(len(Model)):
     MAT_CorrectedZOS_reg = MAT_CorrectedZOS_reg.expand_dims({'model': [Model.iloc[i]]},0)
     MAT_CorrectedZOS_reg.attrs['units'] = 'cm'
     MAT_CorrectedZOS_reg.attrs['regridding_method'] = f'xESMF package with {reg_method}'
+    MAT_CorrectedZOS_reg.attrs['variant'] = ModelList[f'{EXP}_Variant'].iloc[i]
     
     if detrend:
         MAT_CorrectedZOS_reg.attrs['branching_method'] = branching_method

@@ -37,7 +37,7 @@ def conv_time_pic_hist(y_ds, hist_ds_attr, verbose=False):
     simulations'''
     
     if verbose:
-        pic.info_branching(hist_ds_attr)
+        info_branching(hist_ds_attr)
             
     try:
         if MIP == 'cmip5':
@@ -116,13 +116,10 @@ def trend_pic_ts(y_ds, hist_ds_attr, MIP, VAR, ModelList_i, trend_order, rmv_dis
         # Build polynomial from coefficients
         Trend_pic = xr.polyval(coord=y_ds.time, coeffs=Trend_pic_coeff)
 
-        # Remove the average over the reference period
-        Trend_pic = Trend_pic - Trend_pic.sel(time=slice(ref_p_min,ref_p_max)
-                                             ).mean(dim='time')
     except:
         print('!!! WARNING: Detrending from piControl for this model does not'+ 
               ' work !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
         branching_method = 'no_detrending'
-        Trend_pic = xr.DataArray(np.zeros(len(years)), coords=[years], dims=["time"])
+        Trend_pic = xr.DataArray(np.zeros(len(y_ds.time)), coords=y_ds.time, dims=["time"])
         
     return Trend_pic, branching_method
