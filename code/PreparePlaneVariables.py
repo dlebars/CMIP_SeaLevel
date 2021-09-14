@@ -17,7 +17,6 @@ import os
 
 import numpy as np
 import xarray as xr
-import pandas as pd
 import xesmf as xe
 
 import mod_loc as loc
@@ -130,13 +129,13 @@ for i in range(len(Model)):
         if verbose:
             print(regridder)
     
-    RefVAR1 = y_ds[VAR].sel(time=slice(ref_p_min,ref_p_max)).mean(dim='time')
+    ref_da = y_ds[VAR].sel(time=slice(ref_p_min,ref_p_max)).mean(dim='time')
 
-    if var=='zos':
+    if VAR=='zos':
         # Use the reference field to mask the small seas that are not connected to the
         # ocean and areas where sea ice is included on the ocean load
-        RefVAR1_corr = RefVAR1 - RefVAR1.mean() #TODO weigthed mean
-        MaskRefVAR1  = np.where((RefVAR1_corr>=2) | (RefVAR1_corr<=-2),np.nan,1)
+        ref_da_corr = ref_da - ref_da.mean()
+        ref_da_mask  = np.where((ref_da_corr>=2) | (ref_da_corr<=-2),np.nan,1)
 
     if detrend:
         Trend_pic, branching_method = pic.trend_pic_ts(
@@ -149,37 +148,45 @@ for i in range(len(Model)):
     for idx, year in enumerate(years):
         print(f'Working on year: {year}')
 
-        VAR1 = y_ds[VAR].sel(time=year)
+        da = y_ds[VAR].sel(time=year)
 
         if (Model.iloc[i] in ['MIROC5', 'GISS-E2-R', 'GISS-E2-R-CC', 'EC-EARTH', 
                           'MRI-CGCM3']): 
-            VAR1 = np.where(VAR1==0,np.nan,VAR1)
+            da = np.where(da==0,np.nan,da)
 
-        AnomVAR1 = (VAR1 - RefVAR1)*MaskRefVAR1
+        anom_da = da - ref_da
+        
+        if VAR=='zos':
+            anom_da = anom_da*ref_da_mask
 
-        DTrendVAR1 = AnomVAR1 - Trend_pic.sel(time=year)
+        if detrend:
+            anom_da = anom_da - Trend_pic.sel(time=year)
 
         # Regrid to the reference 1*1 degree grid
-        DTrendVAR1_reg = regridder(DTrendVAR1)
+        reg_da = regridder(anom_da)
 
-        # Mask problematic regions here
-        if Model.iloc[i] in ['MIROC5', 'GFDL-ESM2M', 'GFDL-CM3','GISS-E2-R', 
-                         'GISS-E2-R-CC']:
-            DTrendVAR1_reg  = DTrendVAR1_reg*mask_ds.mask_med
-        else:
-            DTrendVAR1_reg  = DTrendVAR1_reg*mask_ds.mask
+        if VAR=='zos':
+            # Mask problematic regions here
+            if Model.iloc[i] in ['MIROC5', 'GFDL-ESM2M', 'GFDL-CM3','GISS-E2-R', 
+                             'GISS-E2-R-CC']:
+                reg_da  = reg_da*mask_ds.mask_med
+            else:
+                reg_da  = reg_da*mask_ds.mask
 
-        # Fill the NaN values
-        DTrendVAR1_reg = DTrendVAR1_reg.interpolate_na('lon', method='nearest', 
-                                                       fill_value='extrapolate')
-        DTrendVAR1_reg = DTrendVAR1_reg*mask_ds.mask
-        area_mean = DTrendVAR1_reg.weighted(weights).mean(('lon', 'lat'))
-        print(f'Removing spatial mean of:{np.round(area_mean.values,2)} m')
-        MAT_CorrectedZOS_reg[idx,:,:] = DTrendVAR1_reg - area_mean
+            # Fill the NaN values
+            reg_da = reg_da.interpolate_na('lon', method='nearest', 
+                                                           fill_value='extrapolate')
+            reg_da = reg_da*mask_ds.mask
+            
+            # Remove spatial mean
+            area_mean = reg_da.weighted(weights).mean(('lon', 'lat'))
+            print(f'Removing spatial mean of:{np.round(area_mean.values,2)} m')
+            reg_da = reg_da - area_mean
+            
+        MAT_CorrectedZOS_reg[idx,:,:] = reg_da
 
-#    regridder.clean_weight_file()
-
-    ### Export to a NetCDF file
+    print("### Export data to a NetCDF file ######################################")
+    
     # Convert from m to cm
     MAT_CorrectedZOS_reg = xr.DataArray(MAT_CorrectedZOS_reg*100, 
                                         coords=[years, mask_ds.lat, mask_ds.lon], 
@@ -187,18 +194,17 @@ for i in range(len(Model)):
     MAT_CorrectedZOS_reg = MAT_CorrectedZOS_reg.expand_dims({'model': [Model.iloc[i]]},0)
     MAT_CorrectedZOS_reg.attrs['units'] = 'cm'
     MAT_CorrectedZOS_reg.attrs['regridding_method'] = f'xESMF package with {reg_method}'
-    MAT_CorrectedZOS_reg.attrs['branching_method'] = branching_method
-    MAT_CorrectedZOS_reg.attrs['detrending_order'] = f'{trend_order}'
+    
+    if detrend:
+        MAT_CorrectedZOS_reg.attrs['branching_method'] = branching_method
+        MAT_CorrectedZOS_reg.attrs['detrending_order'] = f'{trend_order}'
     
     MAT_OUT_ds = xr.Dataset({f'CorrectedReggrided_{VAR}': MAT_CorrectedZOS_reg})
-
-    MAT_OUT_ds.attrs['source_file'] = ('This NetCDF file was built from '+ 
-                                       'ComputeOceanDynmicSeaLevel_CMIP5.py')
-    MAT_OUT_ds.attrs['creation_date'] = datetime.now().strftime('%Y-%m-%d %H:%M')
     MAT_OUT_ds.attrs['emission_scenario'] = EXP
-
-    NameOutput = f'{dir_outputs}{MIP}_{VAR}_{EXP}_{Model.iloc[i]}_{year_min}_{year_max-1}.nc'
     
-    if os.path.isfile(NameOutput):
-        os.remove(NameOutput)
-    MAT_OUT_ds.to_netcdf(NameOutput)
+    script_name = os.path.basename(__file__)
+    name_output = f'{dir_outputs}{MIP}_{VAR}_{EXP}_{Model.iloc[i]}_{year_min}_{year_max-1}.nc'
+    loc.export2netcdf(MAT_OUT_ds, name_output, script_name)
+
+    
+    
