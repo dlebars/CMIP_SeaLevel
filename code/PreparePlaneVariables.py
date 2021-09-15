@@ -85,24 +85,25 @@ for i in range(len(Model)):
     try:
         hist_ds = xr.open_mfdataset(hist_files, combine='by_coords', 
                                     use_cftime=True)
-        hist_ds = hist_ds.load()
+        hist_y_ds = loc.yearly_mean(hist_ds)
+        hist_y_ds = hist_y_ds.load()
         
         if EXP != 'historical':
             sce_ds = xr.open_mfdataset(sce_files, combine='by_coords', 
                                        use_cftime=True)
-            sce_ds = sce_ds.load()
+            sce_y_ds = loc.yearly_mean(sce_ds)
+            sce_y_ds = sce_y_ds.load()
+            
     except:
         print(f'!!!!!!!!! Could not open data from {Model.iloc[i]}!!!!!!!!!!!!!!!')
         print('Try the function open_mfdataset with the option combine="nested" ')
         continue
-    
+ 
     if EXP != 'historical':
-        ds = xr.concat([hist_ds,sce_ds],'time')
+        y_ds = xr.concat([hist_y_ds,sce_y_ds],'time')
     else:
-        ds = hist_ds
-        
-    y_ds = loc.yearly_mean(ds)
-    
+        y_ds = hist_y_ds
+
     if Model.iloc[i] == 'BCC-CSM2-MR':
         y_ds = y_ds.rename({'lat':'rlat', 'lon':'rlon'})
     
@@ -126,8 +127,9 @@ for i in range(len(Model)):
             print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
             continue
 
-        if verbose:
-            print(regridder)
+    if verbose:
+        print(f'Using {reg_method} for regridding')
+        #print(regridder) # Use to debug
     
     ref_da = y_ds[VAR].sel(time=slice(ref_p_min,ref_p_max)).mean(dim='time')
 
