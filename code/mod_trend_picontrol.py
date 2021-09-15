@@ -32,7 +32,7 @@ def info_branching(ds_attrs):
         try_attr('parent_time_units', ds_attrs)
         
 
-def conv_time_pic_hist(y_ds, hist_ds_attr, verbose=False):
+def conv_time_pic_hist(MIP, y_ds, hist_ds_attr, verbose=False):
     ''' Find the time conversion between the piControl and the historical 
     simulations'''
     
@@ -100,7 +100,7 @@ def trend_pic(MIP, VAR, ModelList, order, year_min, year_max, conv_pic_hist,
 def trend_pic_ts(y_ds, hist_ds_attr, MIP, VAR, ModelList_i, trend_order, rmv_disc, verbose):
     '''Compute the trend time series from the piControl simulation'''
     
-    conv_pic_hist = conv_time_pic_hist(y_ds, hist_ds_attr, verbose=verbose)
+    conv_pic_hist = conv_time_pic_hist(MIP, y_ds, hist_ds_attr, verbose=verbose)
 
     Trend_pic_coeff, branching_method = trend_pic(
         MIP, VAR, ModelList_i, order=trend_order, year_min=1850, 
