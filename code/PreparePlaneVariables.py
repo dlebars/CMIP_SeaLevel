@@ -30,17 +30,38 @@ MIP = 'cmip6' # cmip5 or cmip6
 # cmip5: 'historical', 'rcp26', 'rcp45', 'rcp60','rcp85'
 EXP = 'historical'
 
-detrend = False # Detrend using piControl simulation
+detrend = False # Detrend using piControl simulation (does not work for piControl)
 trend_order = 1 # Order of the polynomial fit used to detrend the data based on
                 # the piControl simulation
 
-year_min, year_max, ref_p_min, ref_p_max = loc.start_end_ref_dates(MIP, EXP)
-
-print(f'Generating a file for this period: {year_min}-{year_max-1}, including {year_max-1}')
-print(f'using this reference period: {ref_p_min}-{ref_p_max-1}, including {ref_p_max-1}')
-
 dir_outputs = '../outputs/'
 dir_inputs = '../inputs/'
+
+####### End of user defined parameters ########################################
+
+def open_files(files):
+    '''Open NetCDF files as xarray dataset, compute yearly mean and load.
+    Load allows to avoid dask and speed up the computations. I dont know why...'''
+    
+    try:
+        ds = xr.open_mfdataset(files, combine='by_coords', use_cftime=True)
+        y_ds = loc.yearly_mean(ds)
+        y_ds = y_ds.load()
+        
+    except:
+        print(f'!!!!!!!!! Could not open data from {Model.iloc[i]}!!!!!!!!!!!!!!!')
+        print('Try the function open_mfdataset with the option combine="nested" ')
+        
+    return y_ds
+
+sce_list = ['ssp119', 'ssp126', 'ssp245', 'ssp370', 'ssp585', 
+            'rcp26', 'rcp45', 'rcp60','rcp85']
+
+# Determine wether the anomaly compared to a reference period needs to be taken
+anom_dic = {'zos' : True,
+            'ps' : False,
+            'uas' : False,
+            'vas' : False}
 
 ModelList = loc.read_model_list(dir_inputs, MIP, EXP, VAR)
 
@@ -50,9 +71,6 @@ ModelList = ModelList.loc[ModelList.Model!='CNRM-CM6-1-HR']
 ModelList = ModelList.loc[ModelList.Model!='AWI-CM-1-1-MR']
 
 Model = ModelList.Model
-
-# Build array of years
-years = np.arange(year_min,year_max) + 0.5
 
 # Read the regular 1*1 grid to use for regridded outputs
 mask_ds = xr.open_dataset(dir_inputs+'reference_masks.nc')
@@ -75,42 +93,52 @@ print(Model)
 
 for i in range(len(Model)):
     print(f'####### Working on model {i}, {Model.iloc[i]}  ######################')
-    
-    hist_files = loc.select_files(MIP, 'historical', VAR, ModelList.iloc[i], verbose)
-    
-    if EXP != 'historical':
-        sce_files = loc.select_files(MIP, EXP, VAR, ModelList.iloc[i], verbose)       
-    
-    # Open files
-    try:
-        hist_ds = xr.open_mfdataset(hist_files, combine='by_coords', 
-                                    use_cftime=True)
-        hist_y_ds = loc.yearly_mean(hist_ds)
-        hist_y_ds = hist_y_ds.load()
+
+    if EXP in ['piControl', 'historical']:
+        files = loc.select_files(MIP, EXP, VAR, ModelList.iloc[i], verbose)
+        y_ds = open_files(files)
+
+    elif EXP in sce_list:
+        hist_files = loc.select_files(MIP, 'historical', VAR, ModelList.iloc[i], verbose)
+        sce_files = loc.select_files(MIP, EXP, VAR, ModelList.iloc[i], verbose)
         
-        if EXP != 'historical':
-            sce_ds = xr.open_mfdataset(sce_files, combine='by_coords', 
-                                       use_cftime=True)
-            sce_y_ds = loc.yearly_mean(sce_ds)
-            sce_y_ds = sce_y_ds.load()
-            
-    except:
-        print(f'!!!!!!!!! Could not open data from {Model.iloc[i]}!!!!!!!!!!!!!!!')
-        print('Try the function open_mfdataset with the option combine="nested" ')
-        continue
- 
-    if EXP != 'historical':
+        hist_y_ds = open_files(hist_files)
+        sce_y_ds = open_files(sce_files)
         y_ds = xr.concat([hist_y_ds,sce_y_ds],'time')
+        
     else:
-        y_ds = hist_y_ds
+        print(f'ERROR: EXP {EXP} not supported')
 
     if Model.iloc[i] == 'BCC-CSM2-MR':
         y_ds = y_ds.rename({'lat':'rlat', 'lon':'rlon'})
     
     if 'latitude' and 'longitude' in y_ds.coords:
         y_ds = y_ds.rename({'latitude':'lat', 'longitude':'lon'})
+        
     elif 'nav_lat' and 'nav_lon' in y_ds.coords:
         y_ds = y_ds.rename({'nav_lat':'lat', 'nav_lon':'lon'})
+    
+    # Build array of years
+    # For piControl it is read from input data since models use different time 
+    #references.
+    # For historical and scenarios it is fixed to have uniform output size that
+    #helps data analysis.
+    
+    if EXP=='piControl':
+        years = y_ds.time.values
+        year_min = years[0]
+        year_max = years[-1]
+        ref_p_min = year_min
+        ref_p_max = year_min+20
+        
+    else:
+        year_min, year_max, ref_p_min, ref_p_max = loc.start_end_ref_dates(MIP, EXP)
+        years = np.arange(year_min,year_max) + 0.5
+
+    print(f'Generating a file for this period: {year_min}-{year_max-1}, including {year_max-1}')
+
+    if anom_dic[VAR]:
+        print(f'using this reference period: {ref_p_min}-{ref_p_max-1}, including {ref_p_max-1}')
     
     # Build regridder with xESMF
     try:
@@ -131,7 +159,8 @@ for i in range(len(Model)):
         print(f'Using {reg_method} for regridding')
         #print(regridder) # Use to debug
     
-    ref_da = y_ds[VAR].sel(time=slice(ref_p_min,ref_p_max)).mean(dim='time')
+    if anom_dic[VAR]:
+        ref_da = y_ds[VAR].sel(time=slice(ref_p_min,ref_p_max)).mean(dim='time')
 
     if VAR=='zos':
         # Use the reference field to mask the small seas that are not connected to the
@@ -166,16 +195,17 @@ for i in range(len(Model)):
                           'MRI-CGCM3']): 
             da = np.where(da==0,np.nan,da)
 
-        anom_da = da - ref_da
+        if anom_dic[VAR]:
+            da = da - ref_da
         
         if VAR=='zos':
-            anom_da = anom_da*ref_da_mask
+            da = da*ref_da_mask
 
         if detrend:
-            anom_da = anom_da - Trend_pic.sel(time=year)
+            da = da - Trend_pic.sel(time=year)
 
         # Regrid to the reference 1*1 degree grid
-        reg_da = regridder(anom_da)
+        reg_da = regridder(da)
 
         if VAR=='zos':
             # Mask problematic regions here
@@ -219,6 +249,11 @@ for i in range(len(Model)):
         MAT_CorrectedZOS_reg.attrs['long_name'] = 'Northward Near-Surface Wind' 
     else:
         print(f'ERROR: Variable {var} not supported')
+    
+    if anom_dic[VAR]:
+        MAT_CorrectedZOS_reg.attrs['ref_period'] = (
+            f'The folowing reference period {ref_p_min}-{ref_p_max-1},'+
+            f' including {ref_p_max-1}, was used to compute anomalies')
     
     MAT_CorrectedZOS_reg = MAT_CorrectedZOS_reg.expand_dims({'model': [Model.iloc[i]]},0)
     MAT_CorrectedZOS_reg.attrs['regridding_method'] = f'xESMF package with {reg_method}'
