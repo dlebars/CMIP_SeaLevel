@@ -23,14 +23,14 @@ import mod_loc as loc
 import mod_trend_picontrol as pic
 
 verbose = True
-VAR = 'zos' # 'zos', 'ps', 'uas', 'vas'
+VAR = 'ps' # 'zos', 'ps', 'uas', 'vas'
 MIP = 'cmip6' # cmip5 or cmip6
 # EXP available:
 # cmip6: 'historical', 'ssp119', 'ssp126', 'ssp245', 'ssp370', 'ssp585'
 # cmip5: 'historical', 'rcp26', 'rcp45', 'rcp60','rcp85'
-EXP = 'ssp585'
+EXP = 'historical'
 
-detrend = True # Detrend using piControl simulation
+detrend = False # Detrend using piControl simulation
 trend_order = 1 # Order of the polynomial fit used to detrend the data based on
                 # the piControl simulation
 
@@ -153,8 +153,14 @@ for i in range(len(Model)):
     ##### Loop on the years ######################################
     for idx, year in enumerate(years):
         print(f'Working on year: {year}')
-
-        da = y_ds[VAR].sel(time=year)
+        
+        try:
+            da = y_ds[VAR].sel(time=year)
+        except:
+            print(f'Year {year} is not available from input files. Filling'+ 
+                  'outputs with NaN')
+            MAT_CorrectedZOS_reg[idx,:,:] = np.nan
+            continue
 
         if (Model.iloc[i] in ['MIROC5', 'GISS-E2-R', 'GISS-E2-R-CC', 'EC-EARTH', 
                           'MRI-CGCM3']): 
@@ -193,12 +199,28 @@ for i in range(len(Model)):
 
     print("### Export data to a NetCDF file ######################################")
     
-    # Convert from m to cm
-    MAT_CorrectedZOS_reg = xr.DataArray(MAT_CorrectedZOS_reg*100, 
+    # Build a data array from the numpy array
+    MAT_CorrectedZOS_reg = xr.DataArray(MAT_CorrectedZOS_reg, 
                                         coords=[years, mask_ds.lat, mask_ds.lon], 
                                         dims=['time', 'lat', 'lon'])
+    if var=='zos':
+        # Convert from m to cm
+        MAT_CorrectedZOS_reg = MAT_CorrectedZOS_reg*100
+        MAT_CorrectedZOS_reg.attrs['units'] = 'cm'
+        MAT_CorrectedZOS_reg.attrs['long_name'] = 'Ocean dynamic sea level'
+    elif var=='ps':
+        MAT_CorrectedZOS_reg.attrs['units'] = 'Pa'
+        MAT_CorrectedZOS_reg.attrs['long_name'] = 'Surface Air Pressure'
+    elif var=='uas':
+        MAT_CorrectedZOS_reg.attrs['units'] = 'm s-1'
+        MAT_CorrectedZOS_reg.attrs['long_name'] = 'Eastward Near-Surface Wind'
+    elif var=='vas':
+        MAT_CorrectedZOS_reg.attrs['units'] = 'm s-1'
+        MAT_CorrectedZOS_reg.attrs['long_name'] = 'Northward Near-Surface Wind' 
+    else:
+        print(f'ERROR: Variable {var} not supported')
+    
     MAT_CorrectedZOS_reg = MAT_CorrectedZOS_reg.expand_dims({'model': [Model.iloc[i]]},0)
-    MAT_CorrectedZOS_reg.attrs['units'] = 'cm'
     MAT_CorrectedZOS_reg.attrs['regridding_method'] = f'xESMF package with {reg_method}'
     MAT_CorrectedZOS_reg.attrs['variant'] = ModelList[f'{EXP}_Variant'].iloc[i]
     
