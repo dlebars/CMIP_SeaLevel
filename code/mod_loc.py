@@ -13,7 +13,7 @@ def select_cmip5_files(EXP, VAR, ModelList):
     '''Return a list of paths to the CMIP5 data files'''
     
     if EXP == 'rcp60':
-        data_dir = '/nobackup/users/bars/synda_data/cmip5/output1/'
+        data_dir = '/nobackup/users/bars/synda_data_bck/cmip5/output1/'
         path_string = f'*/*/*/*/*{VAR}*.nc'
         path_nb = 2
     else:
@@ -47,9 +47,15 @@ def select_cmip6_files(EXP, VAR, ModelList):
            'ssp370' : 'ScenarioMIP', 
            'ssp585' : 'ScenarioMIP'}
     
-    data_dir  = '/nobackup/users/bars/synda_data/CMIP6/'
+    realm = {'zos' : 'O', # O for Ocean and A for atmosphere
+             'zostoga' : 'O',
+             'ps' : 'A',
+             'uas' : 'A',
+             'vas' : 'A'}
+    
+    data_dir  = '/nobackup/users/bars/synda_data_bck/CMIP6/'
     data_path = (data_dir+MIP[EXP]+'/'+ModelList.Center+'/'+ModelList.Model+
-                '/'+EXP+'/'+ModelList[EXP+'_Variant']+'/Omon/'+VAR+'/'+
+                '/'+EXP+'/'+ModelList[EXP+'_Variant']+'/'+realm[VAR]+'mon/'+VAR+'/'+
                 ModelList.Grid+'/'+ModelList[EXP+'_Version'])
     print('Looking for files there:')
     print(data_path)
