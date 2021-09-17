@@ -26,9 +26,9 @@ verbose = True
 VAR = 'ps' # 'zos', 'ps', 'uas', 'vas'
 MIP = 'cmip6' # cmip5 or cmip6
 # EXP available:
-# cmip6: 'historical', 'ssp119', 'ssp126', 'ssp245', 'ssp370', 'ssp585'
-# cmip5: 'historical', 'rcp26', 'rcp45', 'rcp60','rcp85'
-EXP = 'historical'
+# cmip6: 'piControl', 'historical', 'ssp119', 'ssp126', 'ssp245', 'ssp370', 'ssp585'
+# cmip5: 'piControl', 'historical', 'rcp26', 'rcp45', 'rcp60','rcp85'
+EXP = 'piControl'
 
 detrend = False # Detrend using piControl simulation (does not work for piControl)
 trend_order = 1 # Order of the polynomial fit used to detrend the data based on
@@ -233,22 +233,22 @@ for i in range(len(Model)):
     MAT_CorrectedZOS_reg = xr.DataArray(MAT_CorrectedZOS_reg, 
                                         coords=[years, mask_ds.lat, mask_ds.lon], 
                                         dims=['time', 'lat', 'lon'])
-    if var=='zos':
+    if VAR=='zos':
         # Convert from m to cm
         MAT_CorrectedZOS_reg = MAT_CorrectedZOS_reg*100
         MAT_CorrectedZOS_reg.attrs['units'] = 'cm'
         MAT_CorrectedZOS_reg.attrs['long_name'] = 'Ocean dynamic sea level'
-    elif var=='ps':
+    elif VAR=='ps':
         MAT_CorrectedZOS_reg.attrs['units'] = 'Pa'
         MAT_CorrectedZOS_reg.attrs['long_name'] = 'Surface Air Pressure'
-    elif var=='uas':
+    elif VAR=='uas':
         MAT_CorrectedZOS_reg.attrs['units'] = 'm s-1'
         MAT_CorrectedZOS_reg.attrs['long_name'] = 'Eastward Near-Surface Wind'
-    elif var=='vas':
+    elif VAR=='vas':
         MAT_CorrectedZOS_reg.attrs['units'] = 'm s-1'
         MAT_CorrectedZOS_reg.attrs['long_name'] = 'Northward Near-Surface Wind' 
     else:
-        print(f'ERROR: Variable {var} not supported')
+        print(f'ERROR: Variable {VAR} not supported')
     
     if anom_dic[VAR]:
         MAT_CorrectedZOS_reg.attrs['ref_period'] = (
