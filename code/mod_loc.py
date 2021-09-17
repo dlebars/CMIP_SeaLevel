@@ -184,7 +184,7 @@ def start_end_ref_dates(MIP, EXP):
     year_start_sce = {'cmip5': 2006, 'cmip6': 2015}
     # year_end_sce is excluded.
     # 2101 works for CMIP5, not for some models of CMIP6
-    year_end_sce = {'cmip5': 2101, 'cmip6': 2100}
+    year_end_sce = {'cmip5': 2101, 'cmip6': 2101}
 
     if EXP == 'historical':
         year_min = 1850 # Could start from 1850? Used to be 1900

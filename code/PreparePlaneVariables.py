@@ -28,13 +28,13 @@ MIP = 'cmip6' # cmip5 or cmip6
 # EXP available:
 # cmip6: 'piControl', 'historical', 'ssp119', 'ssp126', 'ssp245', 'ssp370', 'ssp585'
 # cmip5: 'piControl', 'historical', 'rcp26', 'rcp45', 'rcp60','rcp85'
-EXP = 'piControl'
+EXP = 'ssp119'
 
 detrend = False # Detrend using piControl simulation (does not work for piControl)
 trend_order = 1 # Order of the polynomial fit used to detrend the data based on
                 # the piControl simulation
 
-dir_outputs = '../outputs/'
+dir_outputs = '/nobackup/users/bars/CMIP6_regridded/' #'../outputs/'
 dir_inputs = '../inputs/'
 
 ####### End of user defined parameters ########################################
@@ -179,12 +179,18 @@ for i in range(len(Model)):
     
     MAT_CorrectedZOS_reg = np.zeros([len(years), len(mask_ds.lat), len(mask_ds.lon)])
     
+    da_full = y_ds[VAR]
+    
+    if Model.iloc[i] == 'FGOALS-g3':
+        # The historical file is a bit too long for this model
+        da_full = da_full.drop_duplicates(dim='time', keep='last')
+    
     ##### Loop on the years ######################################
     for idx, year in enumerate(years):
         print(f'Working on year: {year}')
         
         try:
-            da = y_ds[VAR].sel(time=year)
+            da = da_full.sel(time=year)
         except:
             print(f'Year {year} is not available from input files. Filling'+ 
                   'outputs with NaN')
@@ -194,7 +200,7 @@ for i in range(len(Model)):
         if (Model.iloc[i] in ['MIROC5', 'GISS-E2-R', 'GISS-E2-R-CC', 'EC-EARTH', 
                           'MRI-CGCM3']): 
             da = np.where(da==0,np.nan,da)
-
+            
         if anom_dic[VAR]:
             da = da - ref_da
         
@@ -260,6 +266,8 @@ for i in range(len(Model)):
     MAT_CorrectedZOS_reg.attrs['variant'] = ModelList[f'{EXP}_Variant'].iloc[i]
     
     if detrend:
+        MAT_CorrectedZOS_reg.attrs['branching_method'] = (
+            'This dataset was detrended using piControl trend')
         MAT_CorrectedZOS_reg.attrs['branching_method'] = branching_method
         MAT_CorrectedZOS_reg.attrs['detrending_order'] = f'{trend_order}'
     
