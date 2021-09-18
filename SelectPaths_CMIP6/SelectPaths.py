@@ -21,16 +21,29 @@ def select_paths(data_dir, experiment_id, variable, var):
     Outout results in a list'''
     depth = depth_path(data_dir)
     list_paths = []
+    
+    MIP_dic = {'historical':'CMIP',
+               'piControl':'CMIP',
+               'ssp119':'ScenarioMIP', 
+               'ssp126':'ScenarioMIP', 
+               'ssp245':'ScenarioMIP', 
+               'ssp370':'ScenarioMIP', 
+               'ssp585':'ScenarioMIP'} 
+    
     for root, dirs, files in os.walk(data_dir):
         if files:
             st = root.split('/')
             st = list(filter(None, st)) # Remove empty '' strings
             if var=='any':
-                if (st[depth+3] == experiment_id) and (st[depth+6] == variable):
+                if ((st[depth] == MIP_dic[experiment_id]) and
+                    (st[depth+3] == experiment_id) and 
+                    (st[depth+6] == variable)):
                     list_paths.append(root)
             else:
-                if (st[depth+3] == experiment_id) and (st[depth+6] == variable) \
-                and (st[depth+4] == var):
+                if ((st[depth] == MIP_dic[experiment_id]) and
+                    (st[depth+3] == experiment_id) and 
+                    (st[depth+6] == variable) and
+                    (st[depth+4] == var)):
                     list_paths.append(root)
                 
     return list_paths
@@ -61,7 +74,7 @@ def select_models_intersection(data_dir, experiment_id, variable, var):
         if idx > 0:
             ind_mods = ind_mods.intersection(ind_mods_prev)
         ind_mods_prev = ind_mods
-    return list(ind_mods)
+    return sorted(list(ind_mods))
 
 def make_info_df(list_path, depth):
     '''Read list of path to data and store info into pandas dataframe '''
@@ -142,7 +155,7 @@ depth = depth_path(CMIP6_path)
 var = 'any'
 # Variables available: 'zostoga', 'zos', 'ps', 'uas', 'vas' 
 
-for variable in ['ps', 'uas', 'vas']:
+for variable in ['zos', 'zostoga', 'ps', 'uas', 'vas']:
     variable = [variable]
     for sce in ['historical','ssp119', 'ssp126', 'ssp245', 'ssp370', 'ssp585']:
         print('####### Working on '+str(variable)+', '+str(sce)+'#################'+
