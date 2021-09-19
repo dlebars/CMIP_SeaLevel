@@ -112,11 +112,12 @@ for i in range(len(Model)):
     if Model.iloc[i] == 'BCC-CSM2-MR':
         y_ds = y_ds.rename({'lat':'rlat', 'lon':'rlon'})
     
-    if 'latitude' and 'longitude' in y_ds.coords:
-        y_ds = y_ds.rename({'latitude':'lat', 'longitude':'lon'})
+    if ('lat' not in y_ds.coords) and ('lon' not in y_ds.coords):
+        if 'latitude' and 'longitude' in y_ds.coords:
+            y_ds = y_ds.rename({'latitude':'lat', 'longitude':'lon'})
         
-    elif 'nav_lat' and 'nav_lon' in y_ds.coords:
-        y_ds = y_ds.rename({'nav_lat':'lat', 'nav_lon':'lon'})
+        elif 'nav_lat' and 'nav_lon' in y_ds.coords:
+            y_ds = y_ds.rename({'nav_lat':'lat', 'nav_lon':'lon'})
     
     # Build array of years
     # For piControl it is read from input data since models use different time 
