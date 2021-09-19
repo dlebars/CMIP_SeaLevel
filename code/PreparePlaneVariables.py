@@ -126,8 +126,8 @@ for i in range(len(Model)):
     
     if EXP=='piControl':
         years = y_ds.time.values
-        year_min = years[0]
-        year_max = years[-1]
+        year_min = int(years[0]) # Only used for output name
+        year_max = int(years[-1])+1
         ref_p_min = year_min
         ref_p_max = year_min+20
         
