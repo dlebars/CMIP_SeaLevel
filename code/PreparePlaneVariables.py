@@ -23,12 +23,12 @@ import mod_loc as loc
 import mod_trend_picontrol as pic
 
 verbose = True
-VAR = 'ps' # 'zos', 'ps', 'uas', 'vas'
+VAR = 'zos' # 'zos', 'ps', 'uas', 'vas'
 MIP = 'cmip6' # cmip5 or cmip6
 # EXP available:
 # cmip6: 'piControl', 'historical', 'ssp119', 'ssp126', 'ssp245', 'ssp370', 'ssp585'
 # cmip5: 'piControl', 'historical', 'rcp26', 'rcp45', 'rcp60','rcp85'
-EXP = 'ssp119'
+EXP = 'piControl'
 
 detrend = False # Detrend using piControl simulation (does not work for piControl)
 trend_order = 1 # Order of the polynomial fit used to detrend the data based on
@@ -171,7 +171,7 @@ for i in range(len(Model)):
 
     if detrend:
         Trend_pic, branching_method = pic.trend_pic_ts(
-            y_ds, hist_ds.attrs, MIP, VAR, ModelList.iloc[i], trend_order, 
+            y_ds, hist_y_ds.attrs, MIP, VAR, ModelList.iloc[i], trend_order, 
             rmv_disc=False, verbose=verbose)
         
         # Remove the average over the reference period
