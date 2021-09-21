@@ -39,21 +39,6 @@ dir_inputs = '../inputs/'
 
 ####### End of user defined parameters ########################################
 
-def open_files(files):
-    '''Open NetCDF files as xarray dataset, compute yearly mean and load.
-    Load allows to avoid dask and speed up the computations. I dont know why...'''
-    
-    try:
-        ds = xr.open_mfdataset(files, combine='by_coords', use_cftime=True)
-        y_ds = loc.yearly_mean(ds)
-        y_ds = y_ds.load()
-        
-    except:
-        print(f'!!!!!!!!! Could not open data from {Model.iloc[i]}!!!!!!!!!!!!!!!')
-        print('Try the function open_mfdataset with the option combine="nested" ')
-        
-    return y_ds
-
 sce_list = ['ssp119', 'ssp126', 'ssp245', 'ssp370', 'ssp585', 
             'rcp26', 'rcp45', 'rcp60','rcp85']
 
@@ -91,19 +76,19 @@ ds_out = xr.Dataset({'lat': (['lat'], mask_ds.lat),
 print('Model used:')
 print(Model)
 
-for i in range(len(Model)):
+for i in range(35,len(Model)):
     print(f'####### Working on model {i}, {Model.iloc[i]}  ######################')
 
     if EXP in ['piControl', 'historical']:
         files = loc.select_files(MIP, EXP, VAR, ModelList.iloc[i], verbose)
-        y_ds = open_files(files)
+        y_ds = loc.open_files(files)
 
     elif EXP in sce_list:
         hist_files = loc.select_files(MIP, 'historical', VAR, ModelList.iloc[i], verbose)
         sce_files = loc.select_files(MIP, EXP, VAR, ModelList.iloc[i], verbose)
         
-        hist_y_ds = open_files(hist_files)
-        sce_y_ds = open_files(sce_files)
+        hist_y_ds = loc.open_files(hist_files)
+        sce_y_ds = loc.open_files(sce_files)
         y_ds = xr.concat([hist_y_ds,sce_y_ds],'time')
         
     else:

@@ -239,3 +239,44 @@ def select_files(MIP, EXP, VAR, ModelList_loc, verbose=False):
             sys.exit('ERROR: No file available at that location') 
         
     return files
+
+
+def check_loading(files, max_GB):
+    '''Check if dataset can be loaded.'''
+    
+    size = 0
+    for f in files:
+        size += os.path.getsize(f)
+    size_gb = size / (2**30) # Convert to GiB
+
+    print(f'The size of the dataset on disk is {size_gb} GiB')
+
+    if size_gb < max_GB:
+        fine_to_load = True
+    else:
+        fine_to_load = False
+        
+    return fine_to_load
+
+
+def open_files(files):
+    '''Open NetCDF files as xarray dataset, compute yearly mean and load.
+    Load allows to avoid dask and speed up the computations. I dont know why...'''
+    
+    try:
+        ds = xr.open_mfdataset(files, combine='by_coords', use_cftime=True)
+        y_ds = yearly_mean(ds)
+        
+        fine_to_load = check_loading(files, 8)
+        
+        if fine_to_load:
+            print('Dataset will be loaded')
+            y_ds = y_ds.load()
+        else:
+            print('Dataset too large to be loaded, computations will use dask')
+        
+    except:
+        print(f'!!!!!!!!! Could not open data from {Model.iloc[i]}!!!!!!!!!!!!!!!')
+        print('Try the function open_mfdataset with the option combine="nested" ')
+        
+    return y_ds
