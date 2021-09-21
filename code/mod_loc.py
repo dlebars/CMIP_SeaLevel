@@ -74,7 +74,7 @@ def yearly_mean(ds):
                           for i in range(len(ds.time))])
         ds.coords['year'] = xr.DataArray(years, dims=['time'])
         
-    y_ds = ds.groupby('year').mean(dim='time')
+    y_ds = ds.groupby('year').mean(dim='time', keep_attrs=True)
     y_ds = y_ds.rename({'year':'time'})
     # Center the time axis to the middle of the year
     y_ds = y_ds.assign_coords(time=(y_ds.time+0.5))

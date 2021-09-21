@@ -66,7 +66,7 @@ def trend_pic(MIP, VAR, ModelList, order, year_min, year_max, conv_pic_hist,
         
     files = loc.select_files(MIP, EXP, VAR, ModelList, verbose)
     
-    ds = loc.open_files(files)
+    y_ds = loc.open_files(files)
     
     if ModelList.Model=='BCC-CSM2-MR' and VAR=='zos':
         y_ds = y_ds.rename({'lat':'rlat', 'lon':'rlon'})

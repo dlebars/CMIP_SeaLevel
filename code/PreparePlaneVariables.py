@@ -28,9 +28,9 @@ MIP = 'cmip6' # cmip5 or cmip6
 # EXP available:
 # cmip6: 'piControl', 'historical', 'ssp119', 'ssp126', 'ssp245', 'ssp370', 'ssp585'
 # cmip5: 'piControl', 'historical', 'rcp26', 'rcp45', 'rcp60','rcp85'
-EXP = 'piControl'
+EXP = 'historical'
 
-detrend = False # Detrend using piControl simulation (does not work for piControl)
+detrend = True # Detrend using piControl simulation (does not work for piControl)
 trend_order = 1 # Order of the polynomial fit used to detrend the data based on
                 # the piControl simulation
 
@@ -76,7 +76,7 @@ ds_out = xr.Dataset({'lat': (['lat'], mask_ds.lat),
 print('Model used:')
 print(Model)
 
-for i in range(35,len(Model)):
+for i in range(len(Model)):
     print(f'####### Working on model {i}, {Model.iloc[i]}  ######################')
 
     if EXP in ['piControl', 'historical']:
@@ -155,8 +155,15 @@ for i in range(35,len(Model)):
         ref_da_mask  = np.where((ref_da_corr>=2) | (ref_da_corr<=-2),np.nan,1)
 
     if detrend:
+        if EXP == 'historical':
+            attrs = y_ds.attrs
+        else:
+            attrs = hist_y_ds.attrs
+        print('attrs')
+        print(attrs)
+            
         Trend_pic, branching_method = pic.trend_pic_ts(
-            y_ds, hist_y_ds.attrs, MIP, VAR, ModelList.iloc[i], trend_order, 
+            y_ds, attrs, MIP, VAR, ModelList.iloc[i], trend_order, 
             rmv_disc=False, verbose=verbose)
         
         # Remove the average over the reference period
