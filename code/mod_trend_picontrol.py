@@ -64,7 +64,7 @@ def trend_pic(MIP, VAR, ModelList, order, year_min, year_max, conv_pic_hist,
     EXP = 'piControl'
     tot_year = year_max - year_min + 1
         
-    files = loc.select_files(MIP, EXP, VAR, ModelList, verbose)
+    files = loc.select_files(MIP, EXP, VAR, ModelList, False)
     
     y_ds = loc.open_files(files)
     

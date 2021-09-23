@@ -28,7 +28,7 @@ MIP = 'cmip6' # cmip5 or cmip6
 # EXP available:
 # cmip6: 'piControl', 'historical', 'ssp119', 'ssp126', 'ssp245', 'ssp370', 'ssp585'
 # cmip5: 'piControl', 'historical', 'rcp26', 'rcp45', 'rcp60','rcp85'
-EXP = 'historical'
+EXP = 'ssp119'
 
 detrend = True # Detrend using piControl simulation (does not work for piControl)
 trend_order = 1 # Order of the polynomial fit used to detrend the data based on
@@ -37,6 +37,7 @@ trend_order = 1 # Order of the polynomial fit used to detrend the data based on
 dir_outputs = '/nobackup/users/bars/CMIP6_regridded/' #'../outputs/'
 dir_inputs = '../inputs/'
 
+print(f'### Making files for {MIP}, {VAR}, {EXP} ###')
 ####### End of user defined parameters ########################################
 
 sce_list = ['ssp119', 'ssp126', 'ssp245', 'ssp370', 'ssp585', 
@@ -76,7 +77,7 @@ ds_out = xr.Dataset({'lat': (['lat'], mask_ds.lat),
 print('Model used:')
 print(Model)
 
-for i in range(40,len(Model)):
+for i in range(len(Model)):
     print(f'####### Working on model {i}, {Model.iloc[i]}  ######################')
 
     if EXP in ['piControl', 'historical']:
@@ -154,7 +155,7 @@ for i in range(40,len(Model)):
         ref_da_corr = ref_da - ref_da.mean()
         ref_da_mask  = np.where((ref_da_corr>=2) | (ref_da_corr<=-2),np.nan,1)
     
-    da_full = y_ds[VAR]
+    da_full = y_ds[VAR].where(y_ds[VAR].time.isin(years), drop=True )
     
     if Model.iloc[i] == 'FGOALS-g3':
         # The historical file is a bit too long for this model
@@ -230,7 +231,7 @@ for i in range(40,len(Model)):
         print('WARNING: There are some missing years.'+
               f' Data has {reg_da.time} years, should be {len(years)}'+
               'interpolating the missing years')
-        MAT_CorrectedZOS_reg = reg_da.intep(time=years)
+        MAT_CorrectedZOS_reg = reg_da.interp(time=years)
 
     print("### Export data to a NetCDF file ######################################")
     
