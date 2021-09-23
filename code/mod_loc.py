@@ -258,21 +258,27 @@ def check_loading(files, max_GB):
     return fine_to_load
 
 
-def open_files(files):
-    '''Open NetCDF files as xarray dataset, compute yearly mean and load.
+def open_files(files, load=False):
+    '''Open NetCDF files as xarray dataset, compute yearly mean and load if 
+    wanted (load=True) and if the dataset is not too large.
     Load allows to avoid dask and speed up the computations. I dont know why...'''
     
     try:
         ds = xr.open_mfdataset(files, combine='by_coords', use_cftime=True)
         y_ds = yearly_mean(ds)
         
-        fine_to_load = check_loading(files, 8)
-
+        fine_to_load = check_loading(files, 5)
+        
+        if load:
+            fine_to_load = fine_to_load
+        else:
+            fine_to_load = False
+        
         if fine_to_load:
             print('Dataset will be loaded')
             y_ds = y_ds.load()
         else:
-            print('Dataset too large to be loaded, computations will use dask')
+            print('Dataset is not loaded, computations will use dask')
         
     except:
         print(f'!!!!!!!!! Could not open data from {Model.iloc[i]}!!!!!!!!!!!!!!!')

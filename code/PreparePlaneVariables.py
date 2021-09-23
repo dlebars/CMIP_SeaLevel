@@ -28,7 +28,7 @@ MIP = 'cmip6' # cmip5 or cmip6
 # EXP available:
 # cmip6: 'piControl', 'historical', 'ssp119', 'ssp126', 'ssp245', 'ssp370', 'ssp585'
 # cmip5: 'piControl', 'historical', 'rcp26', 'rcp45', 'rcp60','rcp85'
-EXP = 'ssp119'
+EXP = 'ssp245'
 
 detrend = True # Detrend using piControl simulation (does not work for piControl)
 trend_order = 1 # Order of the polynomial fit used to detrend the data based on
@@ -77,7 +77,7 @@ ds_out = xr.Dataset({'lat': (['lat'], mask_ds.lat),
 print('Model used:')
 print(Model)
 
-for i in range(len(Model)):
+for i in range(0,len(Model)):
     print(f'####### Working on model {i}, {Model.iloc[i]}  ######################')
 
     if EXP in ['piControl', 'historical']:
