@@ -64,6 +64,32 @@ def select_cmip6_files(EXP, VAR, ModelList):
     
     return all_files
 
+def select_files(MIP, EXP, VAR, ModelList_loc, verbose=False):
+    '''Select file names and paths'''
+    
+    if MIP == 'cmip5':
+        files = select_cmip5_files(EXP, VAR, ModelList_loc)
+        
+    elif MIP == 'cmip6': 
+        # For this model the scenarios are done at DKRZ while piControl 
+        # and historical are done at MPI-M
+        if (ModelList_loc.Model == 'MPI-ESM1-2-HR'):
+            if EXP in ['historical', 'piControl']:
+                ModelList_loc.Center = 'MPI-M'
+            else:
+                ModelList_loc.Center = 'DKRZ'
+
+        files = select_cmip6_files(EXP, VAR, ModelList_loc)
+            
+    if verbose:
+        if len(files) > 0:
+            print('#### Using the following files: ####')
+            [print(str(x)) for x in files]
+        else:
+            sys.exit('ERROR: No file available at that location') 
+        
+    return files
+
 def yearly_mean(ds):
     '''Convert the data set or data array to year'''
     
@@ -213,33 +239,6 @@ def read_model_list(dir_inputs, MIP, EXP, VAR):
                                     f'_{EXP}_historical_piControl.csv')
             
     return ModelList
-
-def select_files(MIP, EXP, VAR, ModelList_loc, verbose=False):
-    '''Select file names and paths'''
-    
-    if MIP == 'cmip5':
-        files = select_cmip5_files(EXP, VAR, ModelList_loc)
-        
-    elif MIP == 'cmip6': 
-        # For this model the scenarios are done at DKRZ while piControl 
-        # and historical are done at MPI-M
-        if (ModelList_loc.Model == 'MPI-ESM1-2-HR'):
-            if EXP in ['historical', 'piControl']:
-                ModelList_loc.Center = 'MPI-M'
-            else:
-                ModelList_loc.Center = 'DKRZ'
-
-        files = select_cmip6_files(EXP, VAR, ModelList_loc)
-            
-    if verbose:
-        if len(files) > 0:
-            print('#### Using the following files: ####')
-            [print(str(x)) for x in files]
-        else:
-            sys.exit('ERROR: No file available at that location') 
-        
-    return files
-
 
 def check_loading(files, max_GB):
     '''Check if dataset can be loaded.'''

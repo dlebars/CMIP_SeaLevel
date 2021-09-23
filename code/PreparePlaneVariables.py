@@ -76,16 +76,16 @@ ds_out = xr.Dataset({'lat': (['lat'], mask_ds.lat),
 print('Model used:')
 print(Model)
 
-for i in range(len(Model)):
+for i in range(40,len(Model)):
     print(f'####### Working on model {i}, {Model.iloc[i]}  ######################')
 
     if EXP in ['piControl', 'historical']:
-        files = loc.select_files(MIP, EXP, VAR, ModelList.iloc[i], verbose)
+        files = loc.select_files(MIP, EXP, VAR, ModelList.iloc[i], False)
         y_ds = loc.open_files(files)
 
     elif EXP in sce_list:
-        hist_files = loc.select_files(MIP, 'historical', VAR, ModelList.iloc[i], verbose)
-        sce_files = loc.select_files(MIP, EXP, VAR, ModelList.iloc[i], verbose)
+        hist_files = loc.select_files(MIP, 'historical', VAR, ModelList.iloc[i], False)
+        sce_files = loc.select_files(MIP, EXP, VAR, ModelList.iloc[i], False)
         
         hist_y_ds = loc.open_files(hist_files)
         sce_y_ds = loc.open_files(sce_files)
@@ -153,20 +153,6 @@ for i in range(len(Model)):
         # ocean and areas where sea ice is included on the ocean load
         ref_da_corr = ref_da - ref_da.mean()
         ref_da_mask  = np.where((ref_da_corr>=2) | (ref_da_corr<=-2),np.nan,1)
-
-    if detrend:
-        if EXP == 'historical':
-            attrs = y_ds.attrs
-        else:
-            attrs = hist_y_ds.attrs
-            
-        Trend_pic, branching_method = pic.trend_pic_ts(
-            y_ds, attrs, MIP, VAR, ModelList.iloc[i], trend_order, 
-            rmv_disc=False, verbose=verbose)
-        
-        # Remove the average over the reference period
-        Trend_pic = Trend_pic - Trend_pic.sel(time=slice(ref_p_min,ref_p_max)
-                                             ).mean(dim='time')
     
     da_full = y_ds[VAR]
     
@@ -186,7 +172,33 @@ for i in range(len(Model)):
         da_full = da_full*ref_da_mask
         
     if detrend:
+        if EXP == 'historical':
+            attrs = y_ds.attrs
+        else:
+            attrs = hist_y_ds.attrs
+            
+        Trend_pic, branching_method = pic.trend_pic_ts(
+            y_ds, attrs, MIP, VAR, ModelList.iloc[i], trend_order, 
+            rmv_disc=False, verbose=verbose)
+        
+        # Remove the average over the reference period
+        Trend_pic = Trend_pic - Trend_pic.sel(time=slice(ref_p_min,ref_p_max)
+                                             ).mean(dim='time')
+        
         da_full = da_full - Trend_pic.sel(time=da_full.time)
+        
+        # Make sure that the grids are the same
+        if (np.array_equal(da_full.coords[da_full.dims[1]],
+                           Trend_pic.coords[Trend_pic.dims[1]]) and 
+            np.array_equal(da_full.coords[da_full.dims[2]],
+                           Trend_pic.coords[Trend_pic.dims[2]])):
+            da_full = da_full - Trend_pic.sel(time=da_full.time)
+        else:
+            print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
+            print(f'ERROR: Grid of piControl is different from grid of {EXP}')
+            print('not using this model')
+            print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
+            continue
         
     # Regrid to the reference 1*1 degree grid
     reg_da = regridder(da_full)
