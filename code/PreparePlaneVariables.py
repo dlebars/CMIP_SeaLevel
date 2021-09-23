@@ -159,8 +159,6 @@ for i in range(len(Model)):
             attrs = y_ds.attrs
         else:
             attrs = hist_y_ds.attrs
-        print('attrs')
-        print(attrs)
             
         Trend_pic, branching_method = pic.trend_pic_ts(
             y_ds, attrs, MIP, VAR, ModelList.iloc[i], trend_order, 
@@ -170,61 +168,57 @@ for i in range(len(Model)):
         Trend_pic = Trend_pic - Trend_pic.sel(time=slice(ref_p_min,ref_p_max)
                                              ).mean(dim='time')
     
-    MAT_CorrectedZOS_reg = np.zeros([len(years), len(mask_ds.lat), len(mask_ds.lon)])
-    
     da_full = y_ds[VAR]
     
     if Model.iloc[i] == 'FGOALS-g3':
         # The historical file is a bit too long for this model
         da_full = da_full.drop_duplicates(dim='time', keep='last')
     
-    ##### Loop on the years ######################################
-    for idx, year in enumerate(years):
-        print(f'Working on year: {year}')
-        
-        try:
-            da = da_full.sel(time=year)
-        except:
-            print(f'Year {year} is not available from input files. Filling'+ 
-                  'outputs with NaN')
-            MAT_CorrectedZOS_reg[idx,:,:] = np.nan
-            continue
-
-        if (Model.iloc[i] in ['MIROC5', 'GISS-E2-R', 'GISS-E2-R-CC', 'EC-EARTH', 
+    
+    if (Model.iloc[i] in ['MIROC5', 'GISS-E2-R', 'GISS-E2-R-CC', 'EC-EARTH', 
                           'MRI-CGCM3']): 
-            da = np.where(da==0,np.nan,da)
-            
-        if anom_dic[VAR]:
-            da = da - ref_da
+        da_full = np.where(da_full==0,np.nan,da)
+    
+    if anom_dic[VAR]:
+        da_full = da_full - ref_da
         
-        if VAR=='zos':
-            da = da*ref_da_mask
+    if VAR=='zos':
+        da_full = da_full*ref_da_mask
+        
+    if detrend:
+        da_full = da_full - Trend_pic.sel(time=da_full.time)
+        
+    # Regrid to the reference 1*1 degree grid
+    reg_da = regridder(da_full)
 
-        if detrend:
-            da = da - Trend_pic.sel(time=year)
+    if VAR=='zos':
+        # Mask problematic regions here
+        if Model.iloc[i] in ['MIROC5', 'GFDL-ESM2M', 'GFDL-CM3','GISS-E2-R', 
+                         'GISS-E2-R-CC']:
+            reg_da  = reg_da*mask_ds.mask_med
+        else:
+            reg_da  = reg_da*mask_ds.mask
 
-        # Regrid to the reference 1*1 degree grid
-        reg_da = regridder(da)
+        # Fill the NaN values
+        reg_da = reg_da.interpolate_na('lon', method='nearest', 
+                                       fill_value='extrapolate')
+        reg_da = reg_da*mask_ds.mask
 
-        if VAR=='zos':
-            # Mask problematic regions here
-            if Model.iloc[i] in ['MIROC5', 'GFDL-ESM2M', 'GFDL-CM3','GISS-E2-R', 
-                             'GISS-E2-R-CC']:
-                reg_da  = reg_da*mask_ds.mask_med
-            else:
-                reg_da  = reg_da*mask_ds.mask
-
-            # Fill the NaN values
-            reg_da = reg_da.interpolate_na('lon', method='nearest', 
-                                                           fill_value='extrapolate')
-            reg_da = reg_da*mask_ds.mask
+        # Remove spatial mean
+        area_mean = reg_da.weighted(weights).mean(('lon', 'lat'))
+        print(f'Removing spatial mean of:{np.round(area_mean.values,2)} m')
+        reg_da = reg_da - area_mean
             
-            # Remove spatial mean
-            area_mean = reg_da.weighted(weights).mean(('lon', 'lat'))
-            print(f'Removing spatial mean of:{np.round(area_mean.values,2)} m')
-            reg_da = reg_da - area_mean
-            
-        MAT_CorrectedZOS_reg[idx,:,:] = reg_da
+    if len(reg_da.time) == len(years):
+        MAT_CorrectedZOS_reg = reg_da
+    elif len(reg_da.time) > len(years):
+        print('ERROR: There is an issue with the number of years, probably some'+ 
+              'duplicates to remove')
+    elif len(reg_da.time) < len(years):
+        print('WARNING: There are some missing years.'+
+              f' Data has {reg_da.time} years, should be {len(years)}'+
+              'interpolating the missing years')
+        MAT_CorrectedZOS_reg = reg_da.intep(time=years)
 
     print("### Export data to a NetCDF file ######################################")
     

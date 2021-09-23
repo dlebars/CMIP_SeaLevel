@@ -268,7 +268,7 @@ def open_files(files):
         y_ds = yearly_mean(ds)
         
         fine_to_load = check_loading(files, 8)
-        
+
         if fine_to_load:
             print('Dataset will be loaded')
             y_ds = y_ds.load()
