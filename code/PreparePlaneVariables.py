@@ -22,12 +22,12 @@ import mod_loc as loc
 import mod_trend_picontrol as pic
 
 verbose = True
-VAR = 'uas' # 'zos', 'ps', 'uas', 'vas'
+VAR = 'tos' # 'zos', 'ps', 'uas', 'vas'
 MIP = 'cmip6' # cmip5 or cmip6
 # EXP available:
 # cmip6: 'piControl', 'historical', 'ssp119', 'ssp126', 'ssp245', 'ssp370', 'ssp585'
 # cmip5: 'piControl', 'historical', 'rcp26', 'rcp45', 'rcp60','rcp85'
-EXP = 'piControl'
+EXP = 'historical'
 
 detrend = False # Detrend using piControl simulation (does not work for piControl)
 trend_order = 1 # Order of the polynomial fit used to detrend the data based on
@@ -44,6 +44,7 @@ sce_list = ['ssp119', 'ssp126', 'ssp245', 'ssp370', 'ssp585',
 
 # Determine wether the anomaly compared to a reference period needs to be taken
 anom_dic = {'zos' : True,
+            'tos' : False,
             'ps' : False,
             'uas' : False,
             'vas' : False}
@@ -243,6 +244,9 @@ for i in range(0,len(Model)):
         MAT_CorrectedZOS_reg = MAT_CorrectedZOS_reg*100
         MAT_CorrectedZOS_reg.attrs['units'] = 'cm'
         MAT_CorrectedZOS_reg.attrs['long_name'] = 'Ocean dynamic sea level'
+    elif VAR=='tos':
+        MAT_CorrectedZOS_reg.attrs['units'] = 'degC'
+        MAT_CorrectedZOS_reg.attrs['long_name'] = 'Sea surface temperature'
     elif VAR=='ps':
         MAT_CorrectedZOS_reg.attrs['units'] = 'Pa'
         MAT_CorrectedZOS_reg.attrs['long_name'] = 'Surface Air Pressure'

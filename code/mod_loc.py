@@ -49,6 +49,7 @@ def select_cmip6_files(EXP, VAR, ModelList):
     
     realm = {'zos' : 'O', # O for Ocean and A for atmosphere
              'zostoga' : 'O',
+             'tos' : 'O',
              'ps' : 'A',
              'uas' : 'A',
              'vas' : 'A'}
