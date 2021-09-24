@@ -6,7 +6,7 @@ The code works only for data in the real of Amon and Omon.
 
 ### How to use this code
 
-The first step is to download CMIP data. This is best done using the [Synda Tranfer Module](https://prodiguer.github.io/synda/sdt/sdt.html). In particular, use the [ESGF replication](https://prodiguer.github.io/synda/sdt/replication.html) that recreates the original ESGF path tree locally. 
+The first step is to download CMIP data. To lern more about CMIP, [this guide](https://pcmdi.llnl.gov/CMIP6/Guide/dataUsers.html) is a good place to start . Downloading is best done using the [Synda Tranfer Module](https://prodiguer.github.io/synda/sdt/sdt.html). In particular, use the [ESGF replication](https://prodiguer.github.io/synda/sdt/replication.html) that recreates the original ESGF path tree locally. 
 
 This is a complex structure so first run SelectPaths.py in /SelectPaths_CMIP6 to create .csv files listing the datasets that were downloaded locally by Synda.
 
