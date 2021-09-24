@@ -6,10 +6,9 @@
 # - Regrid data to a common 1x1 lat/lon grid
 # - Export the result as a NetCDF file
 #
-# Run time can take a while because of the interpollation, around 10 hours for
-# a scenario with 20 model
+# Run time can take a while because of the interpollation (30mn to 2 hours)
 # On linux use nohup, and python -u to avoid output buffering :
-# nohup python -u ComputeOceanDynamicSeaLevel.py > out_rcp60.txt &
+# nohup python -u PreparePlaneVariables.py > out_rcp60.txt &
 ###############################################################################
 
 from datetime import datetime
@@ -23,14 +22,14 @@ import mod_loc as loc
 import mod_trend_picontrol as pic
 
 verbose = True
-VAR = 'zos' # 'zos', 'ps', 'uas', 'vas'
+VAR = 'uas' # 'zos', 'ps', 'uas', 'vas'
 MIP = 'cmip6' # cmip5 or cmip6
 # EXP available:
 # cmip6: 'piControl', 'historical', 'ssp119', 'ssp126', 'ssp245', 'ssp370', 'ssp585'
 # cmip5: 'piControl', 'historical', 'rcp26', 'rcp45', 'rcp60','rcp85'
-EXP = 'ssp245'
+EXP = 'piControl'
 
-detrend = True # Detrend using piControl simulation (does not work for piControl)
+detrend = False # Detrend using piControl simulation (does not work for piControl)
 trend_order = 1 # Order of the polynomial fit used to detrend the data based on
                 # the piControl simulation
 
@@ -229,7 +228,7 @@ for i in range(0,len(Model)):
               'duplicates to remove')
     elif len(reg_da.time) < len(years):
         print('WARNING: There are some missing years.'+
-              f' Data has {reg_da.time} years, should be {len(years)}'+
+              f' Data has {len(reg_da.time)} years, should be {len(years)}, '+
               'interpolating the missing years')
         MAT_CorrectedZOS_reg = reg_da.interp(time=years)
 
