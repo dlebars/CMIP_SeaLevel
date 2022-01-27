@@ -22,19 +22,22 @@ import mod_loc as loc
 import mod_trend_picontrol as pic
 
 verbose = True
-VAR = 'zos' # 'zos', 'ps', 'uas', 'vas', 'tos'
+VAR = 'mlotst' # 'zos', 'ps', 'uas', 'vas', 'tos', 'mlotst'
 MIP = 'cmip6' # cmip5 or cmip6
 # EXP available:
 # cmip6: 'piControl', 'historical', 'ssp119', 'ssp126', 'ssp245', 'ssp370', 'ssp585'
 # cmip5: 'piControl', 'historical', 'rcp26', 'rcp45', 'rcp60','rcp85'
 EXP = 'historical'
 
-detrend = True # Detrend using piControl simulation (does not work for piControl)
+detrend = False # Detrend using piControl simulation (does not work for piControl)
 trend_order = 1 # Order of the polynomial fit used to detrend the data based on
                 # the piControl simulation
 
-SME = 'IPSL-CM6A-LR' # For Single Model Ensemble provide model name 
-                     # otherwise False for multimodel ensemble
+# For Single Model Ensemble (SME) provide model name 
+# otherwise False for multimodel ensemble
+# 'IPSL-CM6A-LR' historical zos is available
+SME = False
+                     
     
 dir_outputs = '/nobackup/users/bars/CMIP6_regridded/' #'../outputs/'
 dir_inputs = '../inputs/'
@@ -50,7 +53,8 @@ anom_dic = {'zos' : True,
             'tos' : False,
             'ps' : False,
             'uas' : False,
-            'vas' : False}
+            'vas' : False,
+            'mlotst' : False}
 
 ModelList = loc.read_model_list(dir_inputs, MIP, EXP, VAR, SME)
 
@@ -228,7 +232,7 @@ for i in range(0,len(Model)):
         reg_da = reg_da - area_mean
             
     if len(reg_da.time) == len(years):
-        MAT_CorrectedZOS_reg = reg_da
+        MAT_Corrected_reg = reg_da
     elif len(reg_da.time) > len(years):
         print('ERROR: There is an issue with the number of years, probably some'+ 
               'duplicates to remove')
@@ -236,50 +240,53 @@ for i in range(0,len(Model)):
         print('WARNING: There are some missing years.'+
               f' Data has {len(reg_da.time)} years, should be {len(years)}, '+
               'interpolating the missing years')
-        MAT_CorrectedZOS_reg = reg_da.interp(time=years)
+        MAT_Corrected_reg = reg_da.interp(time=years)
 
     print("### Export data to a NetCDF file ######################################")
     
     # Build a data array from the numpy array
-    MAT_CorrectedZOS_reg = xr.DataArray(MAT_CorrectedZOS_reg, 
+    MAT_Corrected_reg = xr.DataArray(MAT_Corrected_reg, 
                                         coords=[years, mask_ds.lat, mask_ds.lon], 
                                         dims=['time', 'lat', 'lon'])
     if VAR=='zos':
         # Convert from m to cm
-        MAT_CorrectedZOS_reg = MAT_CorrectedZOS_reg*100
-        MAT_CorrectedZOS_reg.attrs['units'] = 'cm'
-        MAT_CorrectedZOS_reg.attrs['long_name'] = 'Ocean dynamic sea level'
+        MAT_Corrected_reg = MAT_Corrected_reg*100
+        MAT_Corrected_reg.attrs['units'] = 'cm'
+        MAT_Corrected_reg.attrs['long_name'] = 'Ocean dynamic sea level'
     elif VAR=='tos':
-        MAT_CorrectedZOS_reg.attrs['units'] = 'degC'
-        MAT_CorrectedZOS_reg.attrs['long_name'] = 'Sea surface temperature'
+        MAT_Corrected_reg.attrs['units'] = 'degC'
+        MAT_Corrected_reg.attrs['long_name'] = 'Sea surface temperature'
     elif VAR=='ps':
-        MAT_CorrectedZOS_reg.attrs['units'] = 'Pa'
-        MAT_CorrectedZOS_reg.attrs['long_name'] = 'Surface Air Pressure'
+        MAT_Corrected_reg.attrs['units'] = 'Pa'
+        MAT_Corrected_reg.attrs['long_name'] = 'Surface Air Pressure'
     elif VAR=='uas':
-        MAT_CorrectedZOS_reg.attrs['units'] = 'm s-1'
-        MAT_CorrectedZOS_reg.attrs['long_name'] = 'Eastward Near-Surface Wind'
+        MAT_Corrected_reg.attrs['units'] = 'm s-1'
+        MAT_Corrected_reg.attrs['long_name'] = 'Eastward Near-Surface Wind'
     elif VAR=='vas':
-        MAT_CorrectedZOS_reg.attrs['units'] = 'm s-1'
-        MAT_CorrectedZOS_reg.attrs['long_name'] = 'Northward Near-Surface Wind' 
+        MAT_Corrected_reg.attrs['units'] = 'm s-1'
+        MAT_Corrected_reg.attrs['long_name'] = 'Northward Near-Surface Wind'
+    elif VAR=='mlotst':
+        MAT_Corrected_reg.attrs['units'] = 'm'
+        MAT_Corrected_reg.attrs['long_name'] = 'Ocean Mixed Layer Thickness Defined by Sigma T'
     else:
         print(f'ERROR: Variable {VAR} not supported')
     
     if anom_dic[VAR]:
-        MAT_CorrectedZOS_reg.attrs['ref_period'] = (
+        MAT_Corrected_reg.attrs['ref_period'] = (
             f'The folowing reference period {ref_p_min}-{ref_p_max-1},'+
             f' including {ref_p_max-1}, was used to compute anomalies')
     
-    MAT_CorrectedZOS_reg = MAT_CorrectedZOS_reg.expand_dims({'model': [Model.iloc[i]]},0)
-    MAT_CorrectedZOS_reg.attrs['regridding_method'] = f'xESMF package with {reg_method}'
-    MAT_CorrectedZOS_reg.attrs['variant'] = loc_variant
+    MAT_Corrected_reg = MAT_Corrected_reg.expand_dims({'model': [Model.iloc[i]]},0)
+    MAT_Corrected_reg.attrs['regridding_method'] = f'xESMF package with {reg_method}'
+    MAT_Corrected_reg.attrs['variant'] = loc_variant
     
     if detrend:
-        MAT_CorrectedZOS_reg.attrs['branching_method'] = (
+        MAT_Corrected_reg.attrs['branching_method'] = (
             'This dataset was detrended using piControl trend')
-        MAT_CorrectedZOS_reg.attrs['branching_method'] = branching_method
-        MAT_CorrectedZOS_reg.attrs['detrending_order'] = f'{trend_order}'
+        MAT_Corrected_reg.attrs['branching_method'] = branching_method
+        MAT_Corrected_reg.attrs['detrending_order'] = f'{trend_order}'
     
-    MAT_OUT_ds = xr.Dataset({f'CorrectedReggrided_{VAR}': MAT_CorrectedZOS_reg})
+    MAT_OUT_ds = xr.Dataset({f'CorrectedReggrided_{VAR}': MAT_Corrected_reg})
     MAT_OUT_ds.attrs['emission_scenario'] = EXP
     
     script_name = os.path.basename(__file__)

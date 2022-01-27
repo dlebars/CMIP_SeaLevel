@@ -49,6 +49,7 @@ def select_cmip6_files(EXP, VAR, ModelList):
     
     realm = {'zos' : 'O', # O for Ocean and A for atmosphere
              'zostoga' : 'O',
+             'mlotst' : 'O',
              'tos' : 'O',
              'ps' : 'A',
              'uas' : 'A',
@@ -234,21 +235,27 @@ def read_model_list(dir_inputs, MIP, EXP, VAR, SME):
     elif MIP == 'cmip6':
         dir_SelectPath = '../SelectPaths_CMIP6/'
         
-        if SME:
-            if EXP in ['piControl', 'historical']:
-                 ModelList = pd.read_csv(f'{dir_SelectPath}AvailableExperiments_{VAR}'+
-                                        f'_{SME}_historical_piControl.csv', sep=';')       
-            else:
-                ModelList = pd.read_csv(f'{dir_SelectPath}AvailableExperiments_{VAR}'+
-                                        f'_{SME}_{EXP}_historical_piControl.csv', sep=';')        
-        
-        else:        
-            if EXP in ['piControl', 'historical']:
-                 ModelList = pd.read_csv(f'{dir_SelectPath}AvailableExperiments_{VAR}'+
-                                        f'_historical_piControl.csv')       
-            else:
-                ModelList = pd.read_csv(f'{dir_SelectPath}AvailableExperiments_{VAR}'+
-                                        f'_{EXP}_historical_piControl.csv')
+        if VAR == 'mlotst':
+            # No piControl available for this variable
+            ModelList = pd.read_csv(f'{dir_SelectPath}AvailableExperiments_{VAR}'+
+                                    f'_historical.csv') 
+        else:
+            
+            if SME:
+                if EXP in ['piControl', 'historical']:
+                     ModelList = pd.read_csv(f'{dir_SelectPath}AvailableExperiments_{VAR}'+
+                                            f'_{SME}_historical_piControl.csv', sep=';')       
+                else:
+                    ModelList = pd.read_csv(f'{dir_SelectPath}AvailableExperiments_{VAR}'+
+                                            f'_{SME}_{EXP}_historical_piControl.csv', sep=';')        
+
+            else:        
+                if EXP in ['piControl', 'historical']:
+                     ModelList = pd.read_csv(f'{dir_SelectPath}AvailableExperiments_{VAR}'+
+                                            f'_historical_piControl.csv')       
+                else:
+                    ModelList = pd.read_csv(f'{dir_SelectPath}AvailableExperiments_{VAR}'+
+                                            f'_{EXP}_historical_piControl.csv')
             
     return ModelList
 
