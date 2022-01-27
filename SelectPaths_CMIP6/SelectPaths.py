@@ -1,6 +1,8 @@
 ###############################################################################
 # SelectPaths.py: Interogate the local CMIP6 database and select the paths
 # to relevent data.
+# This works for multimodel ensemble but not for single model ensembles.
+# For the single model ensembles I write the data manually in a csv file using Numbers.
 ###############################################################################
 
 import sys
@@ -153,7 +155,7 @@ depth = depth_path(CMIP6_path)
 # var can either the name of a specific variant like r1i1p1f1
 # or 'any' to automatically pick any variant available
 var = 'any'
-# Variables available: 'zostoga', 'zos', 'ps', 'uas', 'vas' 
+# Variables available: 'zostoga', 'zos', 'ps', 'uas', 'vas', 'tos'
 
 for variable in ['zos', 'zostoga', 'ps', 'uas', 'vas']:
     variable = [variable]

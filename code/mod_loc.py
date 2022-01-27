@@ -222,7 +222,7 @@ def start_end_ref_dates(MIP, EXP):
     
     return year_min, year_max, ref_p_min, ref_p_max
 
-def read_model_list(dir_inputs, MIP, EXP, VAR):
+def read_model_list(dir_inputs, MIP, EXP, VAR, SME):
     '''Reads the list of models to use for the analysis'''
     
     if MIP == 'cmip5':
@@ -230,14 +230,25 @@ def read_model_list(dir_inputs, MIP, EXP, VAR):
         ModelList = pd.read_csv(f'{dir_inputs}CMIP5modelSelection_{EXP}_{VAR}.txt', 
                                 delim_whitespace=True, names=col_names,
                                 comment='#')
+        
     elif MIP == 'cmip6':
         dir_SelectPath = '../SelectPaths_CMIP6/'
-        if EXP in ['piControl', 'historical']:
-             ModelList = pd.read_csv(f'{dir_SelectPath}AvailableExperiments_{VAR}'+
-                                    f'_historical_piControl.csv')       
-        else:
-            ModelList = pd.read_csv(f'{dir_SelectPath}AvailableExperiments_{VAR}'+
-                                    f'_{EXP}_historical_piControl.csv')
+        
+        if SME:
+            if EXP in ['piControl', 'historical']:
+                 ModelList = pd.read_csv(f'{dir_SelectPath}AvailableExperiments_{VAR}'+
+                                        f'_{SME}_historical_piControl.csv', sep=';')       
+            else:
+                ModelList = pd.read_csv(f'{dir_SelectPath}AvailableExperiments_{VAR}'+
+                                        f'_{SME}_{EXP}_historical_piControl.csv', sep=';')        
+        
+        else:        
+            if EXP in ['piControl', 'historical']:
+                 ModelList = pd.read_csv(f'{dir_SelectPath}AvailableExperiments_{VAR}'+
+                                        f'_historical_piControl.csv')       
+            else:
+                ModelList = pd.read_csv(f'{dir_SelectPath}AvailableExperiments_{VAR}'+
+                                        f'_{EXP}_historical_piControl.csv')
             
     return ModelList
 

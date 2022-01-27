@@ -22,17 +22,20 @@ import mod_loc as loc
 import mod_trend_picontrol as pic
 
 verbose = True
-VAR = 'tos' # 'zos', 'ps', 'uas', 'vas'
+VAR = 'zos' # 'zos', 'ps', 'uas', 'vas', 'tos'
 MIP = 'cmip6' # cmip5 or cmip6
 # EXP available:
 # cmip6: 'piControl', 'historical', 'ssp119', 'ssp126', 'ssp245', 'ssp370', 'ssp585'
 # cmip5: 'piControl', 'historical', 'rcp26', 'rcp45', 'rcp60','rcp85'
 EXP = 'historical'
 
-detrend = False # Detrend using piControl simulation (does not work for piControl)
+detrend = True # Detrend using piControl simulation (does not work for piControl)
 trend_order = 1 # Order of the polynomial fit used to detrend the data based on
                 # the piControl simulation
 
+SME = 'IPSL-CM6A-LR' # For Single Model Ensemble provide model name 
+                     # otherwise False for multimodel ensemble
+    
 dir_outputs = '/nobackup/users/bars/CMIP6_regridded/' #'../outputs/'
 dir_inputs = '../inputs/'
 
@@ -49,7 +52,7 @@ anom_dic = {'zos' : True,
             'uas' : False,
             'vas' : False}
 
-ModelList = loc.read_model_list(dir_inputs, MIP, EXP, VAR)
+ModelList = loc.read_model_list(dir_inputs, MIP, EXP, VAR, SME)
 
 # Remove a model for which the analysis fails
 ModelList = ModelList.loc[ModelList.Model!='CNRM-CM6-1-HR']
@@ -79,6 +82,8 @@ print(Model)
 
 for i in range(0,len(Model)):
     print(f'####### Working on model {i}, {Model.iloc[i]}  ######################')
+    loc_variant = ModelList[f'{EXP}_Variant'].iloc[i]
+    print(f'Variant: {loc_variant}')
 
     if EXP in ['piControl', 'historical']:
         files = loc.select_files(MIP, EXP, VAR, ModelList.iloc[i], False)
@@ -266,7 +271,7 @@ for i in range(0,len(Model)):
     
     MAT_CorrectedZOS_reg = MAT_CorrectedZOS_reg.expand_dims({'model': [Model.iloc[i]]},0)
     MAT_CorrectedZOS_reg.attrs['regridding_method'] = f'xESMF package with {reg_method}'
-    MAT_CorrectedZOS_reg.attrs['variant'] = ModelList[f'{EXP}_Variant'].iloc[i]
+    MAT_CorrectedZOS_reg.attrs['variant'] = loc_variant
     
     if detrend:
         MAT_CorrectedZOS_reg.attrs['branching_method'] = (
@@ -278,7 +283,13 @@ for i in range(0,len(Model)):
     MAT_OUT_ds.attrs['emission_scenario'] = EXP
     
     script_name = os.path.basename(__file__)
-    name_output = f'{dir_outputs}{MIP}_{VAR}_{EXP}_{Model.iloc[i]}_{year_min}_{year_max-1}.nc'
+    
+    if SME:
+        name_output = (f'{dir_outputs}{MIP}_{VAR}_{EXP}_{Model.iloc[i]}_' + 
+                       f'{loc_variant}_{year_min}_{year_max-1}.nc')
+    else:
+        name_output = f'{dir_outputs}{MIP}_{VAR}_{EXP}_{Model.iloc[i]}_{year_min}_{year_max-1}.nc'
+
     loc.export2netcdf(MAT_OUT_ds, name_output, script_name)
 
     
