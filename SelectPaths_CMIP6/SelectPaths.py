@@ -155,14 +155,24 @@ depth = depth_path(CMIP6_path)
 # var can either the name of a specific variant like r1i1p1f1
 # or 'any' to automatically pick any variant available
 var = 'any'
-# Variables available: 'zostoga', 'zos', 'ps', 'uas', 'vas', 'tos'
+# Scenarios available (not for all variables):
+# 'historical','ssp119', 'ssp126', 'ssp245', 'ssp370', 'ssp585'
+# Variables available: 'zostoga', 'zos', 'ps', 'uas', 'vas', 'tos', 
+# 'mlotst', 'msftmz', 'msftyz'
 
-for variable in ['zos', 'zostoga', 'ps', 'uas', 'vas']:
+for variable in ['mlotst']:
     variable = [variable]
-    for sce in ['historical','ssp119', 'ssp126', 'ssp245', 'ssp370', 'ssp585']:
+    
+    for sce in ['historical']:
         print('####### Working on '+str(variable)+', '+str(sce)+'#################'+
              '###############################################################')
-        exp_id = [sce, 'historical', 'piControl']
+        
+        if variable[0] in ['mlotst']:
+            # Do not search intersection with piControl for these variables
+            exp_id = [sce]
+        else:
+            exp_id = [sce, 'historical', 'piControl']
+            
         ind_mods = select_models_intersection(CMIP6_path, exp_id, variable, var)
         print('Models available for this combination:')
         print(ind_mods)
@@ -174,6 +184,7 @@ for variable in ['zos', 'zostoga', 'ps', 'uas', 'vas']:
             info_df = make_info_df(list_all_paths, depth)
             #print('Info before final selection:')
             #print(info_df)
+            
             if idx == 0:
                 final_info_df = make_final_info_df(info_df, ind_mods, None, None)
                 final_info_df = final_info_df.rename(
@@ -201,14 +212,14 @@ for variable in ['zos', 'zostoga', 'ps', 'uas', 'vas']:
         print('Final info to be saved as csv file:')
         print(final_info_df)
         
-        if (len(variable) == 1) & (len(exp_id) == 3):
-            if sce == 'historical':
+        if sce == 'historical':
+            if variable[0] in ['mlotst']:
+                file_name = (f'AvailableExperiments_{variable[0]}_{exp_id[0]}.csv')
+            else:
                 file_name = (f'AvailableExperiments_{variable[0]}_{exp_id[1]}_'+
                              f'{exp_id[2]}.csv')
-            else:
-                file_name = (f'AvailableExperiments_{variable[0]}_{exp_id[0]}_'+
-                             f'{exp_id[1]}_{exp_id[2]}.csv')
-            final_info_df.to_csv(file_name, index=False)
         else:
-            print('ERROR: Output file name not compatible with length of variable'+
-                  'or exp_id')
+            file_name = (f'AvailableExperiments_{variable[0]}_{exp_id[0]}_'+
+                         f'{exp_id[1]}_{exp_id[2]}.csv')
+            
+        final_info_df.to_csv(file_name, index=False)
