@@ -15,7 +15,7 @@ import mod_loc as loc
 import mod_trend_picontrol as pic
 
 verbose = True # Print additional information
-VAR = 'msftmz' # msftmz, msftyz
+VAR = 'msftyz' # msftmz, msftyz
 lat_s = 26 # Latitude to select
 MIP = 'cmip6'
 # EXP available:
@@ -74,6 +74,29 @@ for i in range(dimMod):
         sce_ds = open_files(sce_files)
         all_ds = xr.concat([hist_ds,sce_ds],'time')
         
+    # Change the name of some variables
+    if ('lat' not in all_ds.coords):
+        if 'latitude' in all_ds.coords:
+            all_ds = all_ds.rename({'latitude':'lat'})
+        elif 'rlat' in all_ds.coords:
+            all_ds = all_ds.rename({'rlat':'lat'})
+        elif 'nav_lat' in all_ds.coords:
+            all_ds = all_ds.rename({'nav_lat':'lat'})
+        elif 'j-mean' in all_ds.coords:
+            all_ds = all_ds.rename({'j-mean':'lat'})
+        elif 'y' in all_ds.coords:
+            all_ds = all_ds.rename({'y':'lat'})
+    
+    if '3basin' in all_ds.coords:
+        all_ds = all_ds.rename({'3basin':'basin'})
+
+    if 'region' in all_ds.coords:
+        all_ds = all_ds.rename({'region':'sector'})
+        
+    if 'olevel' in all_ds.coords:
+        all_ds = all_ds.rename({'olevel':'lev'})
+    
+    
     VAR1 = all_ds[VAR].squeeze()
     VAR1a = loc.yearly_mean(VAR1)
     print(VAR1a)
@@ -91,11 +114,21 @@ for i in range(dimMod):
             
         except:
             print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
-            print('The atlantic_arctic_ocean sector was not found, using index 0 instead')
+            print('The atlantic_arctic_ocean sector was not found')
+            
+            if ModelList.Model[i] == 'IPSL-CM6A-LR':
+                atl_ind = 1
+            else:
+                atl_ind = 0
+                
+            print(f'using index {atl_ind} instead')
             print('Check the basin variable metadata:')
             print(VAR1a.basin)
-            atl_ind = 0
-            
+    
+    if ModelList.Model[i] == 'IPSL-CM6A-LR':
+        VAR1a = VAR1a.swap_dims({'y': 'lat'})
+        VAR1a = VAR1a.isel(lat=slice(-1)) # Last latitude value is double
+    
     VAR1a = VAR1a.isel(basin=atl_ind).sel(lat=lat_s, method='nearest')
     VAR1a = VAR1a.max(dim='lev')
     
