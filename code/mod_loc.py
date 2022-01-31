@@ -51,6 +51,8 @@ def select_cmip6_files(EXP, VAR, ModelList):
              'zostoga' : 'O',
              'mlotst' : 'O',
              'tos' : 'O',
+             'msftmz': 'O',
+             'msftyz' : 'O',
              'ps' : 'A',
              'uas' : 'A',
              'vas' : 'A'}
