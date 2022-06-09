@@ -152,7 +152,7 @@ def make_final_info_df(info_df, ind_mods, info_exp, exp):
 CMIP6_path = '/nobackup/users/bars/synda_data/CMIP6/'
 #'/nobackup_1/users/bars/synda_cmip6/CMIP6/'
 depth = depth_path(CMIP6_path)
-# var can either the name of a specific variant like r1i1p1f1
+# var can either be the name of a specific variant like r1i1p1f1
 # or 'any' to automatically pick any variant available
 var = 'any'
 # Scenarios available (not for all variables):
