@@ -1,7 +1,7 @@
 ###############################################################################
 # Compute_amoc_ts.py:
 # Compute time series of AMOC at different latitudes using the msftmz and
-# msftyz files
+# msftyz files for CMIP6 and msftmyz for CMIP5
 ###############################################################################
 
 import os
@@ -16,17 +16,20 @@ import mod_loc as loc
 import mod_trend_picontrol as pic
 
 verbose = True # Print additional information
-VAR = ['msftmz', 'msftyz'] # msftmz, msftyz
 LAT_SEL = [26, 35] # Latitude to select
-MIP = 'cmip6'
-# EXP available:
-# cmip6: 'historical', 'ssp119', 'ssp126', 'ssp245', 'ssp370', 'ssp585'
-# cmip5: 'historical', 'rcp26', 'rcp45', 'rcp60','rcp85'
-EXP = ['historical', 'ssp119', 'ssp126', 'ssp245', 'ssp370', 'ssp585']
+MIP = 'cmip5'
 
-dir_outputs = '/nobackup/users/bars/CMIP6_regridded/'
+if MIP == 'cmip5':
+    VAR = ['msftmyz']
+    EXP = ['historical', 'rcp26', 'rcp45','rcp85']
+    dir_outputs = '/nobackup/users/bars/CMIP5_regridded/'
+    
+elif MIP == 'cmip6':
+    VAR = ['msftmz', 'msftyz'] # msftmz, msftyz
+    EXP = ['historical', 'ssp119', 'ssp126', 'ssp245', 'ssp370', 'ssp585']
+
 dir_inputs = '../inputs/'
-
+dir_outputs = f'/nobackup/users/bars/{MIP.upper()}_regridded/'
 
 def open_files(file_names):
     try:

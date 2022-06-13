@@ -16,20 +16,29 @@ def select_cmip5_files(EXP, VAR, ModelList):
         data_dir = '/nobackup/users/bars/synda_data_bck/cmip5/output1/'
         path_string = f'*/*/*/*/*{VAR}*.nc'
         path_nb = 2
+    elif VAR == 'msftmyz':
+        data_dir = '/nobackup/users/bars/synda_data/cmip5/output1/'
+        path_string = f'*/*/*/*/*{VAR}*.nc'
+        path_nb = 2
     else:
         data_dir = '/nobackup/users/bars/synda/cmip5/output1/'
         path_string = f'*/*/*/*/{VAR}/*{VAR}*.nc'
         path_nb = 3
+        
     p = Path(data_dir+ModelList.Center+'/'+ModelList.Model+
              '/'+EXP+'/'+'mon')
     files = list(p.glob(path_string))
+    
+    print(files)
+    
     # Select the last version of data: 
     vs = []
     for k in range(len(files)):
         part = files[k].parts
         vs.append(part[len(part)-path_nb])
     vs.sort()
-    if EXP == 'rcp60':
+    
+    if (EXP == 'rcp60') or (VAR == 'msftmyz'):
         files = sorted(p.glob(f'*/*/*/{vs[-1]}/*{VAR}*.nc'))
     else:
         files = sorted(p.glob(f'*/*/*/{vs[-1]}/{VAR}/*{VAR}*.nc'))
