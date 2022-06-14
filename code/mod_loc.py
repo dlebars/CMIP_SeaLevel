@@ -18,8 +18,8 @@ def select_cmip5_files(EXP, VAR, ModelList):
         path_nb = 2
     elif VAR == 'msftmyz':
         data_dir = '/nobackup/users/bars/synda_data/cmip5/output1/'
-        path_string = f'*/*/*/*/*{VAR}*.nc'
-        path_nb = 2
+        path_string = f'*/*/*/*/{VAR}/*{VAR}*.nc'
+        path_nb = 3
     else:
         data_dir = '/nobackup/users/bars/synda/cmip5/output1/'
         path_string = f'*/*/*/*/{VAR}/*{VAR}*.nc'
@@ -38,7 +38,7 @@ def select_cmip5_files(EXP, VAR, ModelList):
         vs.append(part[len(part)-path_nb])
     vs.sort()
     
-    if (EXP == 'rcp60') or (VAR == 'msftmyz'):
+    if (EXP == 'rcp60'):
         files = sorted(p.glob(f'*/*/*/{vs[-1]}/*{VAR}*.nc'))
     else:
         files = sorted(p.glob(f'*/*/*/{vs[-1]}/{VAR}/*{VAR}*.nc'))

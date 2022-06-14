@@ -42,7 +42,16 @@ def open_files(file_names):
                                    concat_dim='time', 
                                    use_cftime=True)
         except:
-            print('ERROR: Nested option did not work either')
+            print('Nested option did not work either. Decoding time manually.')
+            
+            try:
+                ds = xr.open_mfdataset(file_names, combine='by_coords', decode_times = False)
+                ds.time.attrs['units'] = 'days since 0000-01-01'
+                ds['time'].data[:] = ds.time.data[:] + 365
+                ds = xr.decode_cf(ds)
+                
+            except:
+                print('ERROR: Reading dataset was not successful')
 
     return ds
 
