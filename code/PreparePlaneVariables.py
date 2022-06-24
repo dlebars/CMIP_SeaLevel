@@ -23,7 +23,7 @@ import mod_trend_picontrol as pic
 
 verbose = True
 VAR = 'mlotst' # 'zos', 'ps', 'uas', 'vas', 'tos', 'mlotst'
-MIP = 'cmip6' # cmip5 or cmip6
+MIP = 'cmip5' # cmip5 or cmip6
 # EXP available:
 # cmip6: 'piControl', 'historical', 'ssp119', 'ssp126', 'ssp245', 'ssp370', 'ssp585'
 # cmip5: 'piControl', 'historical', 'rcp26', 'rcp45', 'rcp60','rcp85'
@@ -37,9 +37,8 @@ trend_order = 1 # Order of the polynomial fit used to detrend the data based on
 # otherwise False for multimodel ensemble
 # 'IPSL-CM6A-LR' historical zos is available
 SME = False
-                     
-    
-dir_outputs = '/nobackup/users/bars/CMIP6_regridded/' #'../outputs/'
+
+dir_outputs = f'/nobackup/users/bars/{MIP.upper()}_regridded/'
 dir_inputs = '../inputs/'
 
 print(f'### Making files for {MIP}, {VAR}, {EXP} ###')
@@ -86,7 +85,12 @@ print(Model)
 
 for i in range(0,len(Model)):
     print(f'####### Working on model {i}, {Model.iloc[i]}  ######################')
-    loc_variant = ModelList[f'{EXP}_Variant'].iloc[i]
+    if MIP == 'cmip6':
+        loc_variant = ModelList[f'{EXP}_Variant'].iloc[i]
+    elif MIP == 'cmip5':
+        # The code cannot work with different variants for CMIP5
+        loc_variant = 'r1i1p1'
+        
     print(f'Variant: {loc_variant}')
 
     if EXP in ['piControl', 'historical']:
@@ -170,10 +174,9 @@ for i in range(0,len(Model)):
         # The historical file is a bit too long for this model
         da_full = da_full.drop_duplicates(dim='time', keep='last')
     
-    
     if (Model.iloc[i] in ['MIROC5', 'GISS-E2-R', 'GISS-E2-R-CC', 'EC-EARTH', 
                           'MRI-CGCM3']): 
-        da_full = np.where(da_full==0,np.nan,da)
+        da_full = xr.where(da_full==0,np.nan,da_full)
     
     if anom_dic[VAR]:
         da_full = da_full - ref_da
