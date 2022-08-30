@@ -158,18 +158,20 @@ var = 'any'
 # Scenarios available (not for all variables):
 # 'historical','ssp119', 'ssp126', 'ssp245', 'ssp370', 'ssp585'
 # Variables available: 'zostoga', 'zos', 'ps', 'uas', 'vas', 'tos', 
-# 'mlotst', 'msftmz', 'msftyz'
+# 'mlotst', 'msftmz', 'msftyz', 'vo'
 
-for variable in ['mlotst']:
+var_exceptions = ['mlotst', 'vo']
+
+for variable in ['vo']:
     variable = [variable]
     
-    for sce in ['historical']:
+    for sce in ['historical', 'ssp126', 'ssp245', 'ssp585']:
         print('####### Working on '+str(variable)+', '+str(sce)+'#################'+
              '###############################################################')
         
-        if variable[0] in ['mlotst']:
+        if variable[0] in var_exceptions:
             # Do not search intersection with piControl for these variables
-            exp_id = [sce]
+            exp_id = [sce, 'historical']
         else:
             exp_id = [sce, 'historical', 'piControl']
             
@@ -213,13 +215,17 @@ for variable in ['mlotst']:
         print(final_info_df)
         
         if sce == 'historical':
-            if variable[0] in ['mlotst']:
-                file_name = (f'AvailableExperiments_{variable[0]}_{exp_id[0]}.csv')
+            if variable[0] in var_exceptions:
+                file_name = (f'AvailableExperiments_{variable[0]}_{exp_id[1]}.csv')
             else:
                 file_name = (f'AvailableExperiments_{variable[0]}_{exp_id[1]}_'+
                              f'{exp_id[2]}.csv')
         else:
-            file_name = (f'AvailableExperiments_{variable[0]}_{exp_id[0]}_'+
-                         f'{exp_id[1]}_{exp_id[2]}.csv')
+            if variable[0] in var_exceptions:
+                file_name = (f'AvailableExperiments_{variable[0]}_{exp_id[0]}_'+
+                             f'{exp_id[1]}.csv')
+            else:
+                file_name = (f'AvailableExperiments_{variable[0]}_{exp_id[0]}_'+
+                             f'{exp_id[1]}_{exp_id[2]}.csv')
             
         final_info_df.to_csv(file_name, index=False)

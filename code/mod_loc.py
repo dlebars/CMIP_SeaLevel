@@ -62,6 +62,7 @@ def select_cmip6_files(EXP, VAR, ModelList):
              'tos' : 'O',
              'msftmz': 'O',
              'msftyz' : 'O',
+             'vo' : 'O',
              'ps' : 'A',
              'uas' : 'A',
              'vas' : 'A'}
@@ -235,7 +236,8 @@ def start_end_ref_dates(MIP, EXP):
     return year_min, year_max, ref_p_min, ref_p_max
 
 def read_model_list(dir_inputs, MIP, EXP, VAR, SME):
-    '''Reads the list of models to use for the analysis'''
+    '''Reads the list of models to use for the analysis.
+    SME: Model name for Singel Model Ensemble, False otherwise'''
     
     if MIP == 'cmip5':
         col_names = ['Center','Model']
@@ -246,10 +248,15 @@ def read_model_list(dir_inputs, MIP, EXP, VAR, SME):
     elif MIP == 'cmip6':
         dir_SelectPath = '../SelectPaths_CMIP6/'
         
-        if VAR == 'mlotst':
-            # No piControl available for this variable
-            ModelList = pd.read_csv(f'{dir_SelectPath}AvailableExperiments_{VAR}'+
-                                    f'_historical.csv') 
+        if VAR in ['mlotst', 'vo']:
+            # No piControl available for these variables
+            if EXP=='historical':
+                ModelList = pd.read_csv(f'{dir_SelectPath}AvailableExperiments_{VAR}'+
+                                        f'_historical.csv')
+            else:
+                ModelList = pd.read_csv(f'{dir_SelectPath}AvailableExperiments_{VAR}'+
+                        f'_{EXP}_historical.csv')
+                
         else:
             
             if SME:
