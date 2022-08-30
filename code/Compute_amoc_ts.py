@@ -22,7 +22,6 @@ MIP = 'cmip5'
 if MIP == 'cmip5':
     VAR = ['msftmyz']
     EXP = ['historical', 'rcp26', 'rcp45','rcp85']
-    dir_outputs = '/nobackup/users/bars/CMIP5_regridded/'
     
 elif MIP == 'cmip6':
     VAR = ['msftmz', 'msftyz'] # msftmz, msftyz
@@ -69,8 +68,6 @@ for var, lat_sel, exp in itertools.product(VAR, LAT_SEL, EXP):
     time_all = np.arange(year_min, year_max ) + 0.5
     dimt = len(time_all)
     print(f'Number of years: {dimt}')
-
-    name_da = {0: var+'_corrected', 1: 'trend_piControl'}
 
     da = xr.DataArray(np.zeros([dimMod, dimt]), coords=[ModelList.Model, time_all], 
                       dims=['model', 'time'])
