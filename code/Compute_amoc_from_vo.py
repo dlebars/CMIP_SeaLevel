@@ -16,7 +16,7 @@ import numpy as np
 import xarray as xr
 
 import mod_loc as loc
-
+    
 verbose = True # Print additional information
 LAT_SEL = [26, 35] # Latitude to select
 MIP = 'cmip6'
@@ -26,7 +26,6 @@ lat_min, lat_max = 20, 40 # Only used to crop data
 
 # Compute the width of the Atlantic along selected latitudes in meters
 RE = 6.371e6 # Radius of the Earth
-LAT_SEL_DIST = np.cos(np.radians(LAT_SEL))*RE*(lon_max-lon_min)
 
 if MIP == 'cmip5':
     VAR = 'vo'
@@ -142,6 +141,20 @@ for exp in EXP:
             
             #yearly avg
             
+            avg_lat = cropped_da.lat.mean(axis=1)
+            std_lat = cropped_da.lat.std(axis=1)
+            
+            print('Is it fine to average the latitude values?')
+            print(std_lat.values)
+            print(' ')
+            
+            for lat_sel in LAT_SEL:
+                ind_lat = np.abs(avg_lat-lat_sel).argmin().values
+                lat_c = cropped_da[:,:,ind_lat]
+                
+            
+
+            
         elif (len(loc_da['lon'].shape)) == 1:
             print('### One dimension lon/lat arrays ###')
             
@@ -154,7 +167,7 @@ for exp in EXP:
                 
                 dlon = (lat_c['lon'][1:].values-lat_c['lon'][:-1].values)
                 dlon = np.append(dlon, dlon[-1])
-                zonal_length = np.cos(np.radians(lat_sel))*RE*dlon
+                zonal_length = np.cos(np.radians(lat_sel))*RE*np.radians(dlon)
                 
                 # Remove time dependence of depth
                 if 'time' in ds['lev_bnds'].coords:
@@ -179,7 +192,7 @@ for exp in EXP:
                     print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
                     print('There seem to be missing time data, model not used')
     
-    da = da/10e6 # Convert m3/s to Sv
+    da = da/1e6 # Convert m3/s to Sv
     
     da.attrs['long_name'] = 'AMOC volume transport'
     da.attrs['description'] = ('AMOC volume transport computed fom integrating the'+ 
@@ -189,7 +202,7 @@ for exp in EXP:
     ds['amoc'] = da
 
     ### Remove missing models
-    ds = ds.where(ds[VAR]!=0)
+    ds = ds.where(ds['amoc']!=0)
     ds = ds.dropna('model',how='all')
 
     ds = ds.sel(time=slice(year_min,year_max))
