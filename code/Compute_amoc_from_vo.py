@@ -11,6 +11,7 @@
 
 import itertools
 import os
+import time
 
 import numpy as np
 import xarray as xr
@@ -23,9 +24,6 @@ MIP = 'cmip6'
 
 lon_min, lon_max = 280, 355
 lat_min, lat_max = 20, 40 # Only used to crop data
-
-# Compute the width of the Atlantic along selected latitudes in meters
-RE = 6.371e6 # Radius of the Earth
 
 if MIP == 'cmip5':
     VAR = 'vo'
@@ -83,6 +81,16 @@ def harmonize_lat_lon_lev_names(ds):
             
     if 'olevel' in ds.coords:
         ds = ds.rename({'olevel':'lev'})
+        
+    if ('x' not in ds.coords):
+        if 'i' in ds.coords:
+            ds = ds.rename({'i':'x'})
+        if 'nlon' in ds.coords:
+            ds = ds.rename({'nlon':'x'})
+            
+    if ('bnds' not in ds.dims):
+        if 'd2' in ds.dims:
+            ds = ds.rename({'d2':'bnds'})
             
     return ds
 
@@ -94,6 +102,37 @@ def change_longitude_values(ds):
     ds['lon'].values = new_lon
     
     return ds
+
+def compute_amoc(lat_sec, lev_bnds_in):
+    '''Compute the Antactic Meridional Overturning Circulation from meridional 
+    velocities along a section'''
+
+    RE = 6.371e6 # Radius of the Earth
+    
+    dlon = (lat_sec['lon'][1:].values-lat_sec['lon'][:-1].values)
+    dlon = np.append(dlon, dlon[-1])
+    zonal_length = np.cos(np.radians(lat_sec.lat.values))*RE*np.radians(dlon)
+
+    # Remove time dependence of depth
+    if 'time' in lev_bnds_in.coords:
+        lev_bnds = lev_bnds_in.isel(time=0)
+    else:
+        lev_bnds = lev_bnds_in
+
+    vertical_length = lev_bnds.isel(bnds=1)-lev_bnds.isel(bnds=0)
+    
+    print('Multiplying velocities and section area')
+    vo_vol = lat_sec*zonal_length*vertical_length
+    
+    print('Computing sum along longitude')
+    zonal_sum = vo_vol.sum(dim='lon')
+    
+    print('Computing vertical sum')
+    vertical_cumsum = zonal_sum.cumsum(dim='lev')
+
+    amoc = vertical_cumsum.max(dim='lev')
+    
+    return amoc
 
 for exp in EXP:
     print(f'Working on VAR {VAR}, exp {exp}')
@@ -115,7 +154,10 @@ for exp in EXP:
                       dims=['model', 'time', 'latitude'])
 
     for i in range(dimMod):
-        print('###### Working on new model ##################################')
+        print(' ')
+        print(f'###### Working on {ModelList.Model.loc[i]} ##################')
+        print(' ')
+        start_time = time.time()
         
         files = loc.select_files(MIP, exp, VAR, ModelList.loc[i], verbose)
         ds = open_files(files)
@@ -123,7 +165,6 @@ for exp in EXP:
         print(ds)
         
         loc_da = ds[VAR].squeeze()
-        #y_da = loc.yearly_mean(loc_da)
         
         loc_da = harmonize_lat_lon_lev_names(loc_da)
         ds = harmonize_lat_lon_lev_names(ds)
@@ -139,20 +180,32 @@ for exp in EXP:
         
             cropped_da = loc_da.where(mask_lon & mask_lat, drop=True)
             
-            #yearly avg
-            
             avg_lat = cropped_da.lat.mean(axis=1)
             std_lat = cropped_da.lat.std(axis=1)
             
+            print(' ')
             print('Is it fine to average the latitude values?')
+            print('Standard deviation of latitude along the x direction:')
             print(std_lat.values)
             print(' ')
             
-            for lat_sel in LAT_SEL:
+            for indl, lat_sel in enumerate(LAT_SEL):
+                print(f'Latitude {lat_sel}')
                 ind_lat = np.abs(avg_lat-lat_sel).argmin().values
-                lat_c = cropped_da[:,:,ind_lat]
+                lat_c = cropped_da[:,:,ind_lat].copy()
                 
-            
+                print('Computing yearly average')
+                lat_c = loc.yearly_mean(lat_c)
+                lat_c = lat_c.swap_dims({'x': 'lon'})
+                
+                print('Computing amoc')
+                amoc = compute_amoc(lat_c, ds['lev_bnds'])
+                
+                try:
+                    da[i,:,indl] = amoc.sel(time=slice(year_min,year_max))
+                except:
+                    print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
+                    print('There seem to be missing time data, model not used')
 
             
         elif (len(loc_da['lon'].shape)) == 1:
@@ -165,32 +218,18 @@ for exp in EXP:
                 
                 lat_c = loc.yearly_mean(lat_c)
                 
-                dlon = (lat_c['lon'][1:].values-lat_c['lon'][:-1].values)
-                dlon = np.append(dlon, dlon[-1])
-                zonal_length = np.cos(np.radians(lat_sel))*RE*np.radians(dlon)
-                
-                # Remove time dependence of depth
-                if 'time' in ds['lev_bnds'].coords:
-                    lev_bnds = ds['lev_bnds'].isel(time=0)
-                else:
-                    lev_bnds = ds['lev_bnds']
-                    
-                vertical_length = lev_bnds.isel(bnds=1)-lev_bnds.isel(bnds=0)
-                    
-                vo_vol = lat_c*zonal_length*vertical_length
-                
-                zonal_sum = vo_vol.sum(dim='lon')
-                vertical_cumsum = zonal_sum.cumsum(dim='lev')
-                
-                amoc = vertical_cumsum.max(dim='lev')
-                
-                print(amoc)
+                amoc = compute_amoc(lat_c, ds['lev_bnds'])
                 
                 try:
                     da[i,:,indl] = amoc.sel(time=slice(year_min,year_max))
                 except:
                     print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
                     print('There seem to be missing time data, model not used')
+                    
+        print(' ')
+        print('Run time for this model:')
+        print(f'{(time.time() - start_time)/60} minutes')
+        print(' ')
     
     da = da/1e6 # Convert m3/s to Sv
     
