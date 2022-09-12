@@ -7,6 +7,10 @@
 # 1- Grid cells are equally spaces in the zonal direction at the LAT_SEL latitudes
 # 2- Zonal direction is approximately in line with y indexes even for 2D 
 # curvilinear grids
+#
+# Run time can take a while because of the interpollation (8mn per model)
+# On linux use nohup, and python -u to avoid output buffering :
+# nohup python -u Compute_amoc_from_vo.py > out_Compute_amoc_from_vo_cmip6.txt &
 ###############################################################################
 
 import itertools
@@ -91,6 +95,13 @@ def harmonize_lat_lon_lev_names(ds):
     if ('bnds' not in ds.dims):
         if 'd2' in ds.dims:
             ds = ds.rename({'d2':'bnds'})
+        if 'axis_nbounds' in ds.dims:
+            ds = ds.rename({'axis_nbounds':'bnds'})
+    
+    if type(ds)==xr.core.dataset.Dataset:
+        if ('lev_bnds' not in ds.data_vars):
+            if 'lev_bounds' in ds.data_vars:
+                ds = ds.rename({'lev_bounds':'lev_bnds'})
             
     return ds
 
@@ -141,6 +152,9 @@ for exp in EXP:
     print(f'Generating a file for this period: {year_min}-{year_max-1}, including {year_max-1}')
 
     ModelList = loc.read_model_list(dir_inputs, MIP, exp, VAR, False)
+    
+    # Subselect models
+    ModelList = ModelList.iloc[4:] # 2 and 3 don't work...
 
     print(ModelList)
 
@@ -149,17 +163,17 @@ for exp in EXP:
     dimt = len(time_all)
     print(f'Number of years: {dimt}')
 
-    da = xr.DataArray(np.zeros([dimMod, dimt, len(LAT_SEL)]), 
-                      coords=[ModelList.Model, time_all, LAT_SEL], 
-                      dims=['model', 'time', 'latitude'])
-
     for i in range(dimMod):
         print(' ')
-        print(f'###### Working on {ModelList.Model.loc[i]} ##################')
+        print(f'###### Working on {ModelList.Model.iloc[i]} ##################')
         print(' ')
         start_time = time.time()
         
-        files = loc.select_files(MIP, exp, VAR, ModelList.loc[i], verbose)
+        da = xr.DataArray(np.zeros([1, dimt, len(LAT_SEL)]), 
+                          coords=[[ModelList.Model.iloc[i]], time_all, LAT_SEL], 
+                          dims=['model', 'time', 'latitude'])
+        
+        files = loc.select_files(MIP, exp, VAR, ModelList.iloc[i], verbose)
         ds = open_files(files)
         
         print(ds)
@@ -202,7 +216,7 @@ for exp in EXP:
                 amoc = compute_amoc(lat_c, ds['lev_bnds'])
                 
                 try:
-                    da[i,:,indl] = amoc.sel(time=slice(year_min,year_max))
+                    da[0,:,indl] = amoc.sel(time=slice(year_min,year_max))
                 except:
                     print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
                     print('There seem to be missing time data, model not used')
@@ -225,28 +239,28 @@ for exp in EXP:
                 except:
                     print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
                     print('There seem to be missing time data, model not used')
-                    
+    
+        da = da/1e6 # Convert m3/s to Sv
+
+        da.attrs['long_name'] = 'AMOC volume transport'
+        da.attrs['description'] = ('AMOC volume transport computed fom integrating the'+ 
+                                   'meridional velocity')
+        da.attrs['units'] = 'Sv'
+        ds = xr.Dataset()
+        ds['amoc'] = da
+
+#         ### Remove missing models
+#         ds = ds.where(ds['amoc']!=0)
+#         ds = ds.dropna('model',how='all')
+
+        ds = ds.sel(time=slice(year_min,year_max))
+
+        print("### Export data to a NetCDF file ######################################")
+        script_name = os.path.basename(__file__)
+        name_output = f'{dir_outputs}{MIP}_amoc_{VAR}_{exp}_{ModelList.Model.iloc[i]}_{year_min}_{year_max-1}.nc'
+        loc.export2netcdf(ds, name_output, script_name)
+        
         print(' ')
         print('Run time for this model:')
         print(f'{(time.time() - start_time)/60} minutes')
         print(' ')
-    
-    da = da/1e6 # Convert m3/s to Sv
-    
-    da.attrs['long_name'] = 'AMOC volume transport'
-    da.attrs['description'] = ('AMOC volume transport computed fom integrating the'+ 
-                               'meridional velocity')
-    da.attrs['units'] = 'Sv'
-    ds = xr.Dataset()
-    ds['amoc'] = da
-
-    ### Remove missing models
-    ds = ds.where(ds['amoc']!=0)
-    ds = ds.dropna('model',how='all')
-
-    ds = ds.sel(time=slice(year_min,year_max))
-
-    print("### Export data to a NetCDF file ######################################")
-    script_name = os.path.basename(__file__)
-    name_output = f'{dir_outputs}{MIP}_amoc_{VAR}_{exp}_{year_min}_{year_max-1}.nc'
-    loc.export2netcdf(ds, name_output, script_name)
