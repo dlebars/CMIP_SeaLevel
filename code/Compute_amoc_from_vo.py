@@ -102,6 +102,11 @@ def harmonize_lat_lon_lev_names(ds):
         if ('lev_bnds' not in ds.data_vars):
             if 'lev_bounds' in ds.data_vars:
                 ds = ds.rename({'lev_bounds':'lev_bnds'})
+                
+    if ds.lev.units == 'centimeters':
+        # Convert centimeters to meters
+        ds['lev'] = ds['lev']*0.01
+        ds['lev'].attrs['units'] = 'meters'
             
     return ds
 
@@ -235,7 +240,7 @@ for exp in EXP:
                 amoc = compute_amoc(lat_c, ds['lev_bnds'])
                 
                 try:
-                    da[i,:,indl] = amoc.sel(time=slice(year_min,year_max))
+                    da[0,:,indl] = amoc.sel(time=slice(year_min,year_max))
                 except:
                     print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
                     print('There seem to be missing time data, model not used')
@@ -243,15 +248,11 @@ for exp in EXP:
         da = da/1e6 # Convert m3/s to Sv
 
         da.attrs['long_name'] = 'AMOC volume transport'
-        da.attrs['description'] = ('AMOC volume transport computed fom integrating the'+ 
+        da.attrs['description'] = ('AMOC volume transport computed from integrating the'+ 
                                    'meridional velocity')
         da.attrs['units'] = 'Sv'
         ds = xr.Dataset()
         ds['amoc'] = da
-
-#         ### Remove missing models
-#         ds = ds.where(ds['amoc']!=0)
-#         ds = ds.dropna('model',how='all')
 
         ds = ds.sel(time=slice(year_min,year_max))
 
