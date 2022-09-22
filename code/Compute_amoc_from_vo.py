@@ -138,15 +138,24 @@ def compute_amoc(lat_sec, lev_bnds_in):
     vertical_length = lev_bnds.isel(bnds=1)-lev_bnds.isel(bnds=0)
     
     print('Multiplying velocities and section area')
+    time_now = time.time()
     vo_vol = lat_sec*zonal_length*vertical_length
+    print(f'{(time.time() - time_now)/60} minutes')
     
     print('Computing sum along longitude')
+    time_now = time.time()
     zonal_sum = vo_vol.sum(dim='lon')
+    print(f'{(time.time() - time_now)/60} minutes')
     
     print('Computing vertical sum')
+    time_now = time.time()
     vertical_cumsum = zonal_sum.cumsum(dim='lev')
-
+    print(f'{(time.time() - time_now)/60} minutes')
+    
+    print('Check max')
+    time_now = time.time()
     amoc = vertical_cumsum.max(dim='lev')
+    print(f'{(time.time() - time_now)/60} minutes')
     
     return amoc
 
@@ -158,8 +167,11 @@ for exp in EXP:
 
     ModelList = loc.read_model_list(dir_inputs, MIP, exp, VAR, False)
     
-    # Subselect models
-    ModelList = ModelList.iloc[4:] # 2 and 3 don't work...
+    # Remove models for which the analysis fails
+    ModelList = ModelList.loc[ModelList.Model!='CESM2']
+    ModelList = ModelList.loc[ModelList.Model!='CIESM']
+    # For these two models it seems that there is a problem with dask but not 
+    # using dask makes the computations take way too long.
 
     print(ModelList)
 
@@ -221,6 +233,7 @@ for exp in EXP:
                 amoc = compute_amoc(lat_c, ds['lev_bnds'])
                 
                 try:
+                    print('Storing data')
                     da[0,:,indl] = amoc.sel(time=slice(year_min,year_max))
                 except:
                     print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
