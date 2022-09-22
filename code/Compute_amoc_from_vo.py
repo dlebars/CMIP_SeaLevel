@@ -191,7 +191,7 @@ for exp in EXP:
     ModelList = ModelList.loc[ModelList.Model!='MIROC-ES2L']
 
     # Potentially select a few models to compute
-    ModelList = ModelList.loc[ModelList.Model.isin(['GFDL-ESM2G', 'GFDL-ESM2M', 'HadGEM2-CC', 'HadGEM2-ES'])]
+    ModelList = ModelList.loc[ModelList.Model.isin(['HadGEM2-CC', 'HadGEM2-ES'])]
 
     print(ModelList)
 
@@ -277,7 +277,8 @@ for exp in EXP:
                     da[0,:,indl] = amoc.sel(time=slice(year_min,year_max))
                 except:
                     print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
-                    print('There seem to be missing time data, model not used')
+                    print('There seem to be missing time data, interpolating')
+                    da[0,:,indl] = amoc.interp(time=time_all)
     
         da = da/1e6 # Convert m3/s to Sv
 
