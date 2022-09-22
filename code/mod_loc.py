@@ -16,7 +16,7 @@ def select_cmip5_files(EXP, VAR, ModelList):
         data_dir = '/nobackup/users/bars/synda_data_bck/cmip5/output1/'
         path_string = f'*/*/*/*/*{VAR}*.nc'
         path_nb = 2
-    elif VAR in ['msftmyz','mlotst']:
+    elif VAR in ['msftmyz', 'mlotst', 'vo']:
         data_dir = '/nobackup/users/bars/synda_data/cmip5/output1/'
         path_string = f'*/*/*/*/{VAR}/*{VAR}*.nc'
         path_nb = 3

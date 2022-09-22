@@ -11,6 +11,9 @@
 # Run time can take a while because of the interpollation (8mn per model)
 # On linux use nohup, and python -u to avoid output buffering :
 # nohup python -u Compute_amoc_from_vo.py > out_Compute_amoc_from_vo_cmip6.txt &
+#
+# A few models are removed from the analysis because the code fails to analyse them.
+# HadGEM3-GC31-MM does not have enough years available.
 ###############################################################################
 
 import itertools
@@ -24,14 +27,14 @@ import mod_loc as loc
     
 verbose = True # Print additional information
 LAT_SEL = [26, 35] # Latitude to select
-MIP = 'cmip6'
+MIP = 'cmip5'
 
 lon_min, lon_max = 280, 355
 lat_min, lat_max = 20, 40 # Only used to crop data
 
 if MIP == 'cmip5':
     VAR = 'vo'
-    EXP = ['historical', 'rcp26', 'rcp45','rcp85']
+    EXP =  ['historical'] #['historical', 'rcp26', 'rcp45','rcp85']
     
 elif MIP == 'cmip6':
     VAR = 'vo' # msftmz, msftyz
@@ -91,6 +94,8 @@ def harmonize_lat_lon_lev_names(ds):
             ds = ds.rename({'i':'x'})
         if 'nlon' in ds.coords:
             ds = ds.rename({'nlon':'x'})
+        if 'rlon' in ds.coords:
+            ds = ds.rename({'rlon':'x'})
             
     if ('bnds' not in ds.dims):
         if 'd2' in ds.dims:
@@ -160,18 +165,33 @@ def compute_amoc(lat_sec, lev_bnds_in):
     return amoc
 
 for exp in EXP:
-    print(f'Working on VAR {VAR}, exp {exp}')
+    print(f'Working on VAR: {VAR}, exp: {exp}')
 
     year_min, year_max, ref_p_min, ref_p_max = loc.start_end_ref_dates(MIP, exp)
     print(f'Generating a file for this period: {year_min}-{year_max-1}, including {year_max-1}')
 
     ModelList = loc.read_model_list(dir_inputs, MIP, exp, VAR, False)
     
-    # Remove models for which the analysis fails
-    ModelList = ModelList.loc[ModelList.Model!='CESM2']
-    ModelList = ModelList.loc[ModelList.Model!='CIESM']
+    ### Remove models for which the analysis fails
+
+    ## CMIP5
+    # Models using sigma coordinates
+    ModelList = ModelList.loc[~ModelList.Model.isin(
+        ['MIROC-ESM', 'MIROC-ESM-CHEM', 'MIROC5', 'inmcm4'])]
+    
+    ## CMIP6
     # For these two models it seems that there is a problem with dask but not 
     # using dask makes the computations take way too long.
+    ModelList = ModelList.loc[ModelList.Model!='CESM2']
+    ModelList = ModelList.loc[ModelList.Model!='CIESM']
+    ModelList = ModelList.loc[ModelList.Model!='HadGEM3-GC31-LL']
+    ModelList = ModelList.loc[ModelList.Model!='UKESM1-0-LL']
+    
+    # This model is on sigma coordinates
+    ModelList = ModelList.loc[ModelList.Model!='MIROC-ES2L']
+
+    # Potentially select a few models to compute
+    ModelList = ModelList.loc[ModelList.Model.isin(['GFDL-ESM2G', 'GFDL-ESM2M', 'HadGEM2-CC', 'HadGEM2-ES'])]
 
     print(ModelList)
 
@@ -237,7 +257,8 @@ for exp in EXP:
                     da[0,:,indl] = amoc.sel(time=slice(year_min,year_max))
                 except:
                     print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
-                    print('There seem to be missing time data, model not used')
+                    print('There seem to be missing time data, interpolating')
+                    da[0,:,indl] = amoc.interp(time=time_all)
 
             
         elif (len(loc_da['lon'].shape)) == 1:
