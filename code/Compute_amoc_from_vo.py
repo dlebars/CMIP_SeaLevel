@@ -34,11 +34,13 @@ lat_min, lat_max = 20, 40 # Only used to crop data
 
 if MIP == 'cmip5':
     VAR = 'vo'
-    EXP =  ['historical'] #['historical', 'rcp26', 'rcp45','rcp85']
+    # Available: 'historical', 'rcp26', 'rcp45','rcp85'
+    EXP =  ['rcp26', 'rcp45','rcp85']
     
 elif MIP == 'cmip6':
     VAR = 'vo' # msftmz, msftyz
-    EXP = ['historical'] #, 'ssp126', 'ssp245', 'ssp585']
+    # Available: 'historical', 'ssp126', 'ssp245', 'ssp585'
+    EXP = ['ssp126', 'ssp245', 'ssp585'] 
 
 dir_inputs = '../inputs/'
 dir_outputs = f'/nobackup/users/bars/{MIP.upper()}_regridded/'
@@ -143,24 +145,16 @@ def compute_amoc(lat_sec, lev_bnds_in):
     vertical_length = lev_bnds.isel(bnds=1)-lev_bnds.isel(bnds=0)
     
     print('Multiplying velocities and section area')
-    time_now = time.time()
     vo_vol = lat_sec*zonal_length*vertical_length
-    print(f'{(time.time() - time_now)/60} minutes')
     
     print('Computing sum along longitude')
-    time_now = time.time()
     zonal_sum = vo_vol.sum(dim='lon')
-    print(f'{(time.time() - time_now)/60} minutes')
     
     print('Computing vertical sum')
-    time_now = time.time()
     vertical_cumsum = zonal_sum.cumsum(dim='lev')
-    print(f'{(time.time() - time_now)/60} minutes')
     
     print('Check max')
-    time_now = time.time()
     amoc = vertical_cumsum.max(dim='lev')
-    print(f'{(time.time() - time_now)/60} minutes')
     
     return amoc
 
@@ -191,7 +185,7 @@ for exp in EXP:
     ModelList = ModelList.loc[ModelList.Model!='MIROC-ES2L']
 
     # Potentially select a few models to compute
-    ModelList = ModelList.loc[ModelList.Model.isin(['HadGEM2-CC', 'HadGEM2-ES'])]
+    #ModelList = ModelList.loc[ModelList.Model.isin(['HadGEM2-CC', 'HadGEM2-ES'])]
 
     print(ModelList)
 
