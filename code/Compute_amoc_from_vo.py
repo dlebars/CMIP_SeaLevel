@@ -35,7 +35,7 @@ lat_min, lat_max = 20, 40 # Only used to crop data
 if MIP == 'cmip5':
     VAR = 'vo'
     # Available: 'historical', 'rcp26', 'rcp45','rcp85'
-    EXP =  ['rcp26', 'rcp45','rcp85']
+    EXP =  ['rcp45']
     
 elif MIP == 'cmip6':
     VAR = 'vo' # msftmz, msftyz
@@ -186,6 +186,7 @@ for exp in EXP:
 
     # Potentially select a few models to compute
     #ModelList = ModelList.loc[ModelList.Model.isin(['HadGEM2-CC', 'HadGEM2-ES'])]
+    ModelList = ModelList.iloc[4:]
 
     print(ModelList)
 
