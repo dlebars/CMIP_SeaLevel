@@ -22,8 +22,8 @@ import mod_loc as loc
 import mod_trend_picontrol as pic
 
 verbose = True
-VAR = 'mlotst' # 'zos', 'ps', 'uas', 'vas', 'tos', 'mlotst'
-MIP = 'cmip5' # cmip5 or cmip6
+VAR = 'ua' # 'zos', 'ps', 'uas', 'vas', 'tos', 'mlotst', 'ua', 'va'
+MIP = 'cmip6' # cmip5 or cmip6
 # EXP available:
 # cmip6: 'piControl', 'historical', 'ssp119', 'ssp126', 'ssp245', 'ssp370', 'ssp585'
 # cmip5: 'piControl', 'historical', 'rcp26', 'rcp45', 'rcp60','rcp85'
@@ -53,6 +53,8 @@ anom_dic = {'zos' : True,
             'ps' : False,
             'uas' : False,
             'vas' : False,
+            'ua' : False,
+            'va' : False,
             'mlotst' : False}
 
 ModelList = loc.read_model_list(dir_inputs, MIP, EXP, VAR, SME)
@@ -117,6 +119,9 @@ for i in range(0,len(Model)):
         
         elif 'nav_lat' and 'nav_lon' in y_ds.coords:
             y_ds = y_ds.rename({'nav_lat':'lat', 'nav_lon':'lon'})
+    
+    if VAR in ['ua', 'va']:
+        y_ds = y_ds.isel(plev=0)
     
     # Build array of years
     # For piControl it is read from input data since models use different time 
@@ -262,10 +267,10 @@ for i in range(0,len(Model)):
     elif VAR=='ps':
         MAT_Corrected_reg.attrs['units'] = 'Pa'
         MAT_Corrected_reg.attrs['long_name'] = 'Surface Air Pressure'
-    elif VAR=='uas':
+    elif VAR in ['uas', 'ua']:
         MAT_Corrected_reg.attrs['units'] = 'm s-1'
         MAT_Corrected_reg.attrs['long_name'] = 'Eastward Near-Surface Wind'
-    elif VAR=='vas':
+    elif VAR in ['vas', 'va']:
         MAT_Corrected_reg.attrs['units'] = 'm s-1'
         MAT_Corrected_reg.attrs['long_name'] = 'Northward Near-Surface Wind'
     elif VAR=='mlotst':

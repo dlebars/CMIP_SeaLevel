@@ -20,7 +20,7 @@ def depth_path(data_dir):
 
 def select_paths(data_dir, experiment_id, variable, var):
     '''Select all path with data for a given experiment_id and variable. 
-    Outout results in a list'''
+    Output results in a list'''
     depth = depth_path(data_dir)
     list_paths = []
     
@@ -158,11 +158,11 @@ var = 'any'
 # Scenarios available (not for all variables):
 # 'historical','ssp119', 'ssp126', 'ssp245', 'ssp370', 'ssp585'
 # Variables available: 'zostoga', 'zos', 'ps', 'uas', 'vas', 'tos', 
-# 'mlotst', 'msftmz', 'msftyz', 'vo'
+# 'mlotst', 'msftmz', 'msftyz', 'vo', 'ua', 'va'
 
-var_exceptions = ['mlotst', 'vo']
+var_exceptions = ['mlotst', 'vo', 'ua', 'va']
 
-for variable in ['vo']:
+for variable in ['ua', 'va']:
     variable = [variable]
     
     for sce in ['historical', 'ssp126', 'ssp245', 'ssp585']:
