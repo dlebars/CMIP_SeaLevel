@@ -22,7 +22,8 @@ import mod_loc as loc
 import mod_trend_picontrol as pic
 
 verbose = True
-VAR = 'ua' # 'zos', 'ps', 'uas', 'vas', 'tos', 'mlotst', 'ua', 'va'
+VAR = 'aragos' # 'zos', 'ps', 'uas', 'vas', 'tos', 'mlotst', 'ua', 'va', 'o2os', 
+               #'phos', 'aragos'
 MIP = 'cmip6' # cmip5 or cmip6
 # EXP available:
 # cmip6: 'piControl', 'historical', 'ssp119', 'ssp126', 'ssp245', 'ssp370', 'ssp585'
@@ -38,7 +39,14 @@ trend_order = 1 # Order of the polynomial fit used to detrend the data based on
 # 'IPSL-CM6A-LR' historical zos is available
 SME = False
 
-dir_outputs = f'/nobackup/users/bars/{MIP.upper()}_regridded/'
+# List of models for which bilinear reggridding does not work:
+list_nearest = ['CMCC-ESM2', 'CNRM-ESM2-1', 'IPSL-CM6A-LR', 'IPSL-CM6A-LR-INCA', 
+                'MPI-ESM1-2-HR', 'NorESM2-LM', 'NorESM2-MM']
+
+# Output on workstation
+#dir_outputs = f'/nobackup/users/bars/{MIP.upper()}_regridded/'
+# Output on local hard disk
+dir_outputs = '/Users/dewilebars/Projects/Project_ProbSLR/CMIP_SeaLevel/outputs/'
 dir_inputs = '../inputs/'
 
 print(f'### Making files for {MIP}, {VAR}, {EXP} ###')
@@ -55,7 +63,10 @@ anom_dic = {'zos' : True,
             'vas' : False,
             'ua' : False,
             'va' : False,
-            'mlotst' : False}
+            'mlotst' : False,
+            'o2os' : False,
+            'phos' : False,
+            'aragos': False}
 
 ModelList = loc.read_model_list(dir_inputs, MIP, EXP, VAR, SME)
 
@@ -79,8 +90,8 @@ weights = np.cos(np.deg2rad(mask_ds.lat))
 weights.name = 'weights'
 
 # Make a dataset to regrid with xESMF
-ds_out = xr.Dataset({'lat': (['lat'], mask_ds.lat),
-                     'lon': (['lon'], mask_ds.lon)})
+ds_out = xr.Dataset({'lat': (['lat'], mask_ds.lat.data),
+                     'lon': (['lon'], mask_ds.lon.data)})
 
 print('Model used:')
 print(Model)
@@ -146,19 +157,22 @@ for i in range(0,len(Model)):
         print(f'using this reference period: {ref_p_min}-{ref_p_max-1}, including {ref_p_max-1}')
     
     # Build regridder with xESMF
-    try:
-        reg_method = 'bilinear'
+    if Model.iloc[i] in list_nearest:
+        reg_method = 'nearest_s2d'
         regridder = xe.Regridder(y_ds, ds_out, reg_method, periodic=True)
-
-    except:
+    else:
         try:
-            reg_method = 'nearest_s2d'
+            reg_method = 'bilinear'
             regridder = xe.Regridder(y_ds, ds_out, reg_method, periodic=True)
         except:
-            print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
-            print(f'Regridding did not work for {Model.iloc[i]}')
-            print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
-            continue
+            try:
+                reg_method = 'nearest_s2d'
+                regridder = xe.Regridder(y_ds, ds_out, reg_method, periodic=True)
+            except:
+                print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
+                print(f'Regridding did not work for {Model.iloc[i]}')
+                print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
+                continue
 
     if verbose:
         print(f'Using {reg_method} for regridding')
@@ -276,6 +290,15 @@ for i in range(0,len(Model)):
     elif VAR=='mlotst':
         MAT_Corrected_reg.attrs['units'] = 'm'
         MAT_Corrected_reg.attrs['long_name'] = 'Ocean Mixed Layer Thickness Defined by Sigma T'
+    elif VAR=='o2os':
+        MAT_Corrected_reg.attrs['units'] = 'mol m-3'
+        MAT_Corrected_reg.attrs['long_name'] = 'Surface Dissolved Oxygen Concentration'
+    elif VAR=='phos':
+        MAT_Corrected_reg.attrs['units'] = '1'
+        MAT_Corrected_reg.attrs['long_name'] = 'pH'
+    elif VAR=='aragos':
+        MAT_Corrected_reg.attrs['units'] = 'mol m-3'
+        MAT_Corrected_reg.attrs['long_name'] = 'Surface Aragonite Concentration'
     else:
         print(f'ERROR: Variable {VAR} not supported')
     

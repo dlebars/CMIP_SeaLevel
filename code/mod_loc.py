@@ -67,9 +67,16 @@ def select_cmip6_files(EXP, VAR, ModelList):
              'uas' : 'A',
              'vas' : 'A',
              'ua' : 'A',
-             'va' : 'A'}
-    
-    data_dir  = '/nobackup/users/bars/synda_data/CMIP6/'
+             'va' : 'A',
+             'o2os' : 'O',
+             'phos' : 'O',
+             'aragos' : 'O'}
+
+    if VAR in ['o2os', 'phos', 'aragos']:
+        data_dir = '/Volumes/Elements/Data/data/CMIP6/'
+    else:
+        data_dir  = '/nobackup/users/bars/synda_data/CMIP6/'
+        
     data_path = (data_dir+MIP[EXP]+'/'+ModelList.Center+'/'+ModelList.Model+
                 '/'+EXP+'/'+ModelList[EXP+'_Variant']+'/'+realm[VAR]+'mon/'+VAR+'/'+
                 ModelList.Grid+'/'+ModelList[EXP+'_Version'])
@@ -250,7 +257,7 @@ def read_model_list(dir_inputs, MIP, EXP, VAR, SME):
     elif MIP == 'cmip6':
         dir_SelectPath = '../SelectPaths_CMIP6/'
         
-        if VAR in ['mlotst', 'vo', 'ua', 'va']:
+        if VAR in ['mlotst', 'vo', 'ua', 'va', 'o2os', 'phos', 'aragos']:
             # No piControl available for these variables
             if EXP=='historical':
                 ModelList = pd.read_csv(f'{dir_SelectPath}AvailableExperiments_{VAR}'+

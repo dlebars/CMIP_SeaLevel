@@ -45,7 +45,7 @@ def read_zos_ds(data_dir, mip, sce):
     model_intersection = list(set(hist_ds.model.values) & 
                               set(sce_ds.model.values))
     model_intersection.sort()
-    tot_ds = xr.concat([hist_ds,sce_ds],'time').sel(model=model_intersection)
+    tot_ds = xr.concat([hist_ds,sce_ds],'time', join='outer').sel(model=model_intersection)
     
     return tot_ds
 

@@ -1,0 +1,33 @@
+20251208 105002.688 ERROR            PET0 ~~~~~~~~~~~~~~~~~~~~ Degenerate Element Detected ~~~~~~~~~~~~~~~~~~~~
+20251208 105002.688 ERROR            PET0   degenerate elem. id=138060
+20251208 105002.688 ERROR            PET0 
+20251208 105002.688 ERROR            PET0   degenerate elem. coords (lon [-180 to 180], lat [-90 to 90]) (x,y,z)
+20251208 105002.688 ERROR            PET0   -----------------------------------------------------------------
+20251208 105002.688 ERROR            PET0     0  (69.968134,  62.114845)  (0.160208, 0.439406, 0.883887)
+20251208 105002.688 ERROR            PET0     1  (70.031866,  62.114845)  (0.159719, 0.439584, 0.883887)
+20251208 105002.688 ERROR            PET0     2  (69.968134,  62.114845)  (0.160208, 0.439406, 0.883887)
+20251208 105002.688 ERROR            PET0     3  (70.031866,  62.114845)  (0.159719, 0.439584, 0.883887)
+20251208 105002.688 ERROR            PET0 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+20251208 105002.688 ERROR            PET0 ESMCI_Mesh_Regrid_Glue.C:270 ESMCI_regrid_create() Invalid argument  - - Src contains a cell that has corners close enough that the cell collapses to a line or point
+20251208 105038.406 ERROR            PET0 ~~~~~~~~~~~~~~~~~~~~ Degenerate Element Detected ~~~~~~~~~~~~~~~~~~~~
+20251208 105038.406 ERROR            PET0   degenerate elem. id=119461
+20251208 105038.406 ERROR            PET0 
+20251208 105038.406 ERROR            PET0   degenerate elem. coords (lon [-180 to 180], lat [-90 to 90]) (x,y,z)
+20251208 105038.406 ERROR            PET0   -----------------------------------------------------------------
+20251208 105038.407 ERROR            PET0     0  (72.989151,  50.010941)  (0.188007, 0.614525, 0.766167)
+20251208 105038.407 ERROR            PET0     1  (73.010849,  50.010941)  (0.187774, 0.614597, 0.766167)
+20251208 105038.407 ERROR            PET0     2  (72.989151,  50.010941)  (0.188007, 0.614525, 0.766167)
+20251208 105038.407 ERROR            PET0     3  (73.000000,  50.010941)  (0.187890, 0.614561, 0.766167)
+20251208 105038.407 ERROR            PET0 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+20251208 105038.407 ERROR            PET0 ESMCI_Mesh_Regrid_Glue.C:270 ESMCI_regrid_create() Invalid argument  - - Src contains a cell that has corners close enough that the cell collapses to a line or point
+20251208 105959.844 ERROR            PET0 ~~~~~~~~~~~~~~~~~~~~ Degenerate Element Detected ~~~~~~~~~~~~~~~~~~~~
+20251208 105959.845 ERROR            PET0   degenerate elem. id=119461
+20251208 105959.845 ERROR            PET0 
+20251208 105959.845 ERROR            PET0   degenerate elem. coords (lon [-180 to 180], lat [-90 to 90]) (x,y,z)
+20251208 105959.845 ERROR            PET0   -----------------------------------------------------------------
+20251208 105959.845 ERROR            PET0     0  (72.989151,  50.010941)  (0.188007, 0.614525, 0.766167)
+20251208 105959.845 ERROR            PET0     1  (73.010849,  50.010941)  (0.187774, 0.614597, 0.766167)
+20251208 105959.845 ERROR            PET0     2  (72.989151,  50.010941)  (0.188007, 0.614525, 0.766167)
+20251208 105959.845 ERROR            PET0     3  (73.000000,  50.010941)  (0.187890, 0.614561, 0.766167)
+20251208 105959.845 ERROR            PET0 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+20251208 105959.846 ERROR            PET0 ESMCI_Mesh_Regrid_Glue.C:270 ESMCI_regrid_create() Invalid argument  - - Src contains a cell that has corners close enough that the cell collapses to a line or point
