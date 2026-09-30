@@ -149,13 +149,15 @@ def make_final_info_df(info_df, ind_mods, info_exp, exp):
     
 ###############################################################################
 
-CMIP6_path = '/Volumes/Elements/Data/data/CMIP6/'
+CMIP6_path = '/nobackup/users/bars/.esgpull/data/CMIP6/'
 # Local database on external disk:
-#'/Volumes/Elements/Data/data/'
+#'/Volumes/Elements/Data/data/CMIP6/'
 # Database on KNMI's workstation:
 #'/nobackup/users/bars/synda_data/CMIP6/'
 # Old location:
 #'/nobackup_1/users/bars/synda_cmip6/CMIP6/'
+# New esgpull data sets:
+# '/nobackup/users/bars/.esgpull/data/CMIP6/'
 depth = depth_path(CMIP6_path)
 # var can either be the name of a specific variant like r1i1p1f1
 # or 'any' to automatically pick any variant available
@@ -163,14 +165,15 @@ var = 'any'
 # Scenarios available (not for all variables):
 # 'historical','ssp119', 'ssp126', 'ssp245', 'ssp370', 'ssp585'
 # Variables available: 'zostoga', 'zos', 'ps', 'uas', 'vas', 'tos', 
-# 'mlotst', 'msftmz', 'msftyz', 'vo', 'ua', 'va', 'o2os', 'phos', 'aragos'
+# 'mlotst', 'msftmz', 'msftyz', 'vo', 'ua', 'va', 'o2os', 'phos', 'aragos', 
+# 'ph', 'o2'
 
-var_exceptions = ['mlotst', 'vo', 'ua', 'va', 'o2os', 'phos', 'aragos']
+var_exceptions = ['mlotst', 'vo', 'ua', 'va', 'o2os', 'phos', 'aragos', 'ph', 'o2']
 
-for variable in ['aragos']:
+for variable in ['ph']:
     variable = [variable]
     
-    for sce in ['historical', 'ssp126', 'ssp245', 'ssp585']:
+    for sce in ['historical', 'ssp126', 'ssp245', 'ssp370', 'ssp585']:
         print('####### Working on '+str(variable)+', '+str(sce)+'#################'+
              '###############################################################')
         

@@ -22,8 +22,10 @@ import mod_loc as loc
 import mod_trend_picontrol as pic
 
 verbose = True
-VAR = 'aragos' # 'zos', 'ps', 'uas', 'vas', 'tos', 'mlotst', 'ua', 'va', 'o2os', 
-               #'phos', 'aragos'
+VAR = 'ph' # 'zos', 'ps', 'uas', 'vas', 'tos', 'mlotst', 'ua', 'va', 'o2os', 
+               #'phos', 'aragos', 'ph', 'os'
+VAR_type = '3dsurf' # 2d for most variables, use 3dbott or 3dsurf to select surface or 
+           #bottom fields for 3d variables.
 MIP = 'cmip6' # cmip5 or cmip6
 # EXP available:
 # cmip6: 'piControl', 'historical', 'ssp119', 'ssp126', 'ssp245', 'ssp370', 'ssp585'
@@ -44,9 +46,9 @@ list_nearest = ['CMCC-ESM2', 'CNRM-ESM2-1', 'IPSL-CM6A-LR', 'IPSL-CM6A-LR-INCA',
                 'MPI-ESM1-2-HR', 'NorESM2-LM', 'NorESM2-MM']
 
 # Output on workstation
-#dir_outputs = f'/nobackup/users/bars/{MIP.upper()}_regridded/'
+dir_outputs = f'/nobackup/users/bars/{MIP.upper()}_regridded/'
 # Output on local hard disk
-dir_outputs = '/Users/dewilebars/Projects/Project_ProbSLR/CMIP_SeaLevel/outputs/'
+#dir_outputs = '/Users/dewilebars/Projects/Project_ProbSLR/CMIP_SeaLevel/outputs/'
 dir_inputs = '../inputs/'
 
 print(f'### Making files for {MIP}, {VAR}, {EXP} ###')
@@ -66,7 +68,9 @@ anom_dic = {'zos' : True,
             'mlotst' : False,
             'o2os' : False,
             'phos' : False,
-            'aragos': False}
+            'aragos' : False,
+            'ph': False,
+            'o2': False}
 
 ModelList = loc.read_model_list(dir_inputs, MIP, EXP, VAR, SME)
 
@@ -130,9 +134,12 @@ for i in range(0,len(Model)):
         
         elif 'nav_lat' and 'nav_lon' in y_ds.coords:
             y_ds = y_ds.rename({'nav_lat':'lat', 'nav_lon':'lon'})
-    
-    if VAR in ['ua', 'va']:
-        y_ds = y_ds.isel(plev=0)
+
+    if VAR_type == '3dsurf':
+        if VAR in ['ua', 'va']:
+            y_ds = y_ds.isel(plev=0)
+        elif VAR in ['ph', 'os']:
+            y_ds = y_ds.isel(plev=0)
     
     # Build array of years
     # For piControl it is read from input data since models use different time 
@@ -293,7 +300,7 @@ for i in range(0,len(Model)):
     elif VAR=='o2os':
         MAT_Corrected_reg.attrs['units'] = 'mol m-3'
         MAT_Corrected_reg.attrs['long_name'] = 'Surface Dissolved Oxygen Concentration'
-    elif VAR=='phos':
+    elif VAR in ['phos', 'ph']:
         MAT_Corrected_reg.attrs['units'] = '1'
         MAT_Corrected_reg.attrs['long_name'] = 'pH'
     elif VAR=='aragos':
