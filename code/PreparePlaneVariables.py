@@ -30,7 +30,7 @@ MIP = 'cmip6' # cmip5 or cmip6
 # EXP available:
 # cmip6: 'piControl', 'historical', 'ssp119', 'ssp126', 'ssp245', 'ssp370', 'ssp585'
 # cmip5: 'piControl', 'historical', 'rcp26', 'rcp45', 'rcp60','rcp85'
-EXP = 'historical'
+EXP = 'ssp126'
 
 detrend = False # Detrend using piControl simulation (does not work for piControl)
 trend_order = 1 # Order of the polynomial fit used to detrend the data based on
@@ -100,7 +100,7 @@ ds_out = xr.Dataset({'lat': (['lat'], mask_ds.lat.data),
 print('Model used:')
 print(Model)
 
-for i in range(0,len(Model)):
+for i in range(4,len(Model)):
     print(f'####### Working on model {i}, {Model.iloc[i]}  ######################')
     if MIP == 'cmip6':
         loc_variant = ModelList[f'{EXP}_Variant'].iloc[i]
@@ -134,6 +134,14 @@ for i in range(0,len(Model)):
         
         elif 'nav_lat' and 'nav_lon' in y_ds.coords:
             y_ds = y_ds.rename({'nav_lat':'lat', 'nav_lon':'lon'})
+            
+    if ('plev' not in y_ds.coords):
+        if 'lev' in y_ds.coords:
+            y_ds = y_ds.rename({'lev':'plev'})
+        elif 'deptht' in y_ds.coords:
+            y_ds = y_ds.rename({'deptht':'plev'})
+        elif 'olevel' in y_ds.coords:
+            y_ds = y_ds.rename({'olevel':'plev'})
 
     if VAR_type == '3dsurf':
         if VAR in ['ua', 'va']:
@@ -196,8 +204,8 @@ for i in range(0,len(Model)):
     
     da_full = y_ds[VAR].where(y_ds[VAR].time.isin(years), drop=True )
     
-    if Model.iloc[i] == 'FGOALS-g3':
-        # The historical file is a bit too long for this model
+    if (Model.iloc[i] == 'FGOALS-g3') or (Model.iloc[i] == 'IPSL-CM5A2-INCA'):
+        # The historical file is a bit too long for FGOALS-g3
         da_full = da_full.drop_duplicates(dim='time', keep='last')
     
     if (Model.iloc[i] in ['MIROC5', 'GISS-E2-R', 'GISS-E2-R-CC', 'EC-EARTH', 

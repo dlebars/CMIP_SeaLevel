@@ -84,11 +84,22 @@ def select_cmip6_files(EXP, VAR, ModelList):
     data_path = (data_dir+MIP[EXP]+'/'+ModelList.Center+'/'+ModelList.Model+
                 '/'+EXP+'/'+ModelList[EXP+'_Variant']+'/'+realm[VAR]+'mon/'+VAR+'/'+
                 ModelList.Grid+'/'+ModelList[EXP+'_Version'])
+    data_path_y = (data_dir+MIP[EXP]+'/'+ModelList.Center+'/'+ModelList.Model+
+                '/'+EXP+'/'+ModelList[EXP+'_Variant']+'/'+realm[VAR]+'yr/'+VAR+'/'+
+                ModelList.Grid+'/'+ModelList[EXP+'_Version'])
     print('Looking for files there:')
     print(data_path)
+
     p = Path(data_path)
     all_files = sorted(p.glob('*'+VAR+'*.nc'))
-    
+
+    if not all_files:
+        print('No monthly data. Looking for yearly data')
+        print('Looking for files there:')
+        print(data_path_y)
+        p = Path(data_path_y)
+        all_files = sorted(p.glob('*'+VAR+'*.nc'))
+        
     return all_files
 
 def select_files(MIP, EXP, VAR, ModelList_loc, verbose=False):
